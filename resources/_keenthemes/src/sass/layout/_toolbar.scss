@@ -1,0 +1,19 @@
+//
+// Toolbar
+//
+
+// Desktop mode
+@include media-breakpoint-up(lg) {
+	.app-toolbar {
+		.app-toolbar-container {
+			border-bottom: var(--#{$prefix}app-separator-border);
+		}
+	}
+}
+
+// Tablet & mobile modes
+@include media-breakpoint-down(lg) {
+    .app-toolbar {
+        border-bottom: var(--#{$prefix}app-separator-border);
+    }
+}

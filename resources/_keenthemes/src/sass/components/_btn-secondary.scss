@@ -1,0 +1,36 @@
+//
+// Secondary button
+//
+
+// Desktop mode
+@include media-breakpoint-up(lg) {
+	.btn.btn-secondary {
+		@include button-custom-variant(
+			$color: var(--#{$prefix}body-bg), 
+			$icon-color: var(--#{$prefix}body-bg), 
+			$border-color: null, 
+			$bg-color: var(--#{$prefix}gray-800),
+			$color-active: var(--#{$prefix}body-bg), 
+			$icon-color-active: var(--#{$prefix}body-bg), 
+			$border-color-active: null, 
+			$bg-color-active: var(--#{$prefix}gray-700),
+		);
+	}
+}
+
+@include color-mode(dark) {
+	// Secondary button
+	.btn.btn-secondary  {
+		@include button-custom-variant(
+			$color: var(--#{$prefix}gray-700),
+			$icon-color: white,
+			$border-color: null, 
+			$bg-color: #2A2A3C,
+			$color-active: var(--#{$prefix}gray-700),
+			$icon-color-active: null,
+			$border-color-active: null, 
+			$bg-color-active: #282838,
+		);
+	}
+}
+

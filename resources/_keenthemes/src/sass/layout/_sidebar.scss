@@ -1,0 +1,164 @@
+//
+// Sidebar
+//
+
+.app-sidebar {
+    .hover-scroll-y {        
+        @include scrollbar-color(transparent, lighten(#262830, 6%));
+    }
+}
+
+.app-sidebar-header {
+    .btn.btn-custom {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+
+        .btn-title {
+            color: white;
+        }
+
+        .btn-desc {
+            color:rgba(255, 255, 255, 0.4);            
+        }
+
+        .btn-icon {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        @include button-active-state() {
+            .btn-title {
+                color: white;
+            }
+
+            .btn-desc {
+                color:rgba(255, 255, 255, 0.5);
+                
+            }
+
+            .btn-icon {
+                color: rgba(255, 255, 255, 0.8);
+            }
+        }
+    }
+}
+
+.app-sidebar-navs {
+    .menu {
+        padding: 0 1.5rem;     
+
+        > .menu-item {
+            // Inner level
+            > .menu-link {
+                padding: 13px 10px;
+
+                .menu-title {
+                    font-size: 1.05rem;
+                    font-weight: $font-weight-normal; 
+                }
+            }         
+
+            // Root level
+            > .menu-heading,
+            > .menu-link > .menu-title {
+                font-size: 1.15rem;
+                font-weight: $font-weight-semibold;      
+            }
+        }
+
+        .menu-item { 
+            .menu-heading {
+                color: $gray-300-dark;
+            }
+
+            .menu-link {
+                .menu-icon {
+                    margin-right: 0.9rem;
+
+                    i {
+                        font-size: 1.5rem !important;
+                        line-height: 0;
+                    }
+
+                    .svg-icon {
+                        @include svg-icon-size(1.75rem, true);
+                    }
+                }
+
+                .menu-badge {
+                    .badge {
+                        font-weight: $font-weight-bold;
+                        font-size: 0.8rem;
+                    }
+
+                    .badge.badge-custom {
+                        background-color: #262626;
+                        color: $gray-600;                        
+                    }
+                }            
+
+                .menu-arrow {
+                    width: 11px;
+                    height: 11px;    
+                }
+            } 
+
+            @include menu-link-default-state( 
+                $title-color: $gray-300, 
+                $icon-color: $gray-600, 
+                $bullet-color: $gray-600, 
+                $arrow-color: $gray-600, 
+                $bg-color: null,
+                $all-links: true
+            );
+            
+            @include menu-link-hover-state( 
+                $title-color: $white, 
+                $icon-color: $white, 
+                $bullet-color: $white,  
+                $arrow-color: $white, 
+                $bg-color: null,
+                $all-links: true
+            );
+            
+            @include menu-link-show-state( 
+                $title-color: $white, 
+                $icon-color: $white, 
+                $bullet-color: $white,  
+                $arrow-color: $white, 
+                $bg-color: null,
+                $all-links: true
+            );
+            
+            @include menu-link-here-state( 
+                $title-color: $white, 
+                $icon-color: $white, 
+                $bullet-color: $white,  
+                $arrow-color: $white, 
+                $bg-color: null,
+                $all-links: true
+            );
+
+            @include menu-link-active-state( 
+                $title-color: $white, 
+                $icon-color: null, 
+                $bullet-color: $white, 
+                $arrow-color: $white, 
+                $bg-color: $app-sidebar-base-menu-link-active,
+                $all-links: true
+            ); 
+        }       
+
+        .menu-collapse-toggle {
+            background-color: transparent !important;
+
+            .menu-title {
+                font-size: 1rem !important;
+                color: $gray-600 !important;
+            }          
+            
+            .svg-color {
+                color: $gray-400 !important;
+            }    
+        } 
+    } 
+}
+

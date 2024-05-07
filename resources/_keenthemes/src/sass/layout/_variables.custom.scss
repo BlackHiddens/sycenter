@@ -1,0 +1,72 @@
+//
+// Variables
+//
+
+// Custom
+$app-separator-border: 1px solid $gray-300;
+$app-separator-border-dark: 1px solid $gray-200-dark;
+
+// Reboot
+$app-bg-color: $body-bg;
+$app-bg-color-dark: $coal-400; 
+
+// General
+$app-general-root-font-size-desktop: 13px;
+$app-general-root-font-size-tablet: 12px;
+$app-general-root-font-size-mobile: 12px;
+
+// Container
+$app-container-padding-x: 60px;
+$app-container-padding-x-mobile: 20px;
+
+// Content
+$app-content-padding-y: 20px;
+$app-content-padding-y-mobile: 20px;
+
+// Header base
+$app-header-base-height: 90px;
+$app-header-base-height-mobile: 60px;
+$app-header-base-bg-color: $body-bg;
+$app-header-base-bg-color-dark: $coal-400;
+
+// Header minimize
+$app-header-minimize-height: 90px;
+$app-header-minimize-height-mobile: 60px;
+$app-header-minimize-bg-color: rgba($body-bg, 0.5);
+$app-header-minimize-bg-color-dark: rgba($body-bg-dark, 0.5);
+$app-header-minimize-backdrop-filter: blur(6px);
+$app-header-minimize-backdrop-filter-mobile: blur(6px);
+
+// Toolbar base
+$app-toolbar-base-height: auto;
+$app-toolbar-base-height-mobile: auto;
+
+// Sidebar base
+$app-sidebar-base-width: 320px;
+$app-sidebar-base-bg-color: $coal-600;
+$app-sidebar-base-bg-color-dark: $coal-600;
+$app-sidebar-base-box-shadow: none;
+$app-sidebar-base-box-shadow-dark: none;
+$app-sidebar-base-border-end-dark: 1px solid $gray-100-dark;
+
+$app-sidebar-base-menu-link-title: $gray-700-dark;
+$app-sidebar-base-menu-link-icon: $gray-500-dark;
+$app-sidebar-base-menu-link-icon-dark: $white;
+$app-sidebar-base-menu-link-active: $coal-100;
+
+// Footer
+$app-footer-height: auto;
+$app-footer-height-mobile: auto;
+
+// Scrolltop
+$scrolltop-bottom: 43px;
+$scrolltop-bottom-mobile: 23px;
+$scrolltop-end: 7px;
+$scrolltop-end-mobile: 5px;
+
+// Layout builder toggle(used for Demo purposes only)
+$app-layout-builder-toggle-bg-color: $body-bg;
+$app-layout-builder-toggle-end: 50px;
+$app-layout-builder-toggle-end-mobile: 40px;
+$app-layout-builder-toggle-bottom: 40px;
+$app-layout-builder-toggle-bottom-mobile: 20px;
