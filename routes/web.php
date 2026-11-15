@@ -1,41 +1,23 @@
 <?php
 
-use App\Http\Controllers\Apps\PermissionManagementController;
-use App\Http\Controllers\Apps\RoleManagementController;
-use App\Http\Controllers\Apps\UserManagementController;
-use App\Http\Controllers\Auth\SocialiteController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
+Route::middleware(['auth'])->group(function () {
+    Route::get('/', fn () => Inertia::render('home'))->name('home');
+    Route::redirect('dashboard', '/')->name('dashboard');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-
-    Route::get('/', [DashboardController::class, 'index']);
-
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    Route::name('user-management.')->group(function () {
-        Route::resource('/user-management/users', UserManagementController::class);
-        Route::resource('/user-management/roles', RoleManagementController::class);
-        Route::resource('/user-management/permissions', PermissionManagementController::class);
+    Route::middleware('app:docs')->group(function () {
+        Route::resource('documents', DocumentController::class)->only(['index', 'store', 'edit', 'update', 'destroy']);
+        Route::get('documents/{document}/pdf', [DocumentController::class, 'pdf'])->name('documents.pdf');
     });
 
+    Route::middleware('app:access')->group(function () {
+        Route::resource('users', UserController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
 });
 
-Route::get('/error', function () {
-    abort(500);
-});
-
-Route::get('/auth/redirect/{provider}', [SocialiteController::class, 'redirect']);
-
-require __DIR__ . '/auth.php';
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';
