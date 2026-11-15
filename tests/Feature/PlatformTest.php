@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -107,5 +108,73 @@ class PlatformTest extends TestCase
         $this->actingAs($viewer)->delete("/documents/{$doc->id}")->assertForbidden();
         $this->actingAs($viewer)->get("/documents/{$doc->id}/pdf")->assertOk();
         $this->assertSame('draft', $doc->fresh()->status);
+    }
+
+    /** document d'architecture logicielle : enregistrement, validation, PDF */
+    public function test_software_document_lifecycle(): void
+    {
+        $user = $this->member();
+        $this->actingAs($user)->post('/documents', ['type' => 'software'])->assertRedirect();
+        $doc = Document::firstOrFail();
+        $data = array_merge(config('documents.software.defaults'), [
+            'goal' => 'Suivre les commandes.',
+            'decisions' => [['decision' => 'PostgreSQL', 'reason' => 'Données relationnelles']],
+        ]);
+
+        $this->actingAs($user)->put("/documents/{$doc->id}", ['title' => 'Portail', 'version' => '1.0', 'data' => $data])->assertSessionHasNoErrors();
+        $this->assertSame('PostgreSQL', $doc->fresh()->data['decisions'][0]['decision']);
+
+        $data['components'][0]['layer'] = 'Inconnue';
+        $this->actingAs($user)->put("/documents/{$doc->id}", ['title' => 'Portail', 'version' => '1.0', 'data' => $data])->assertSessionHasErrors('data.components.0.layer');
+
+        $pdf = $this->actingAs($user)->get("/documents/{$doc->id}/pdf")->assertOk();
+        $this->assertStringStartsWith('%PDF', $pdf->getContent());
+    }
+
+    /** tâches : création, déplacement ordonné entre colonnes, date de fin */
+    public function test_tasks_can_be_created_and_moved(): void
+    {
+        $user = $this->member(['tasks']);
+        foreach (['A', 'B', 'C'] as $title) {
+            $this->actingAs($user)->post('/tasks', ['title' => $title, 'status' => 'todo', 'priority' => 'normal'])->assertSessionHasNoErrors();
+        }
+        [$a, $b, $c] = $user->tasks()->orderBy('position')->get()->all();
+        $order = fn (string $status) => $user->tasks()->where('status', $status)->orderBy('position')->pluck('title')->all();
+        $this->assertSame(['A', 'B', 'C'], $order('todo'));
+
+        $this->actingAs($user)->patch("/tasks/{$c->id}/move", ['status' => 'todo', 'before' => $a->id]);
+        $this->assertSame(['C', 'A', 'B'], $order('todo'));
+
+        $this->actingAs($user)->patch("/tasks/{$b->id}/move", ['status' => 'done', 'before' => null]);
+        $this->assertSame(['C', 'A'], $order('todo'));
+        $this->assertNotNull($b->fresh()->completed_at);
+
+        $this->actingAs($user)->patch("/tasks/{$b->id}/move", ['status' => 'doing']);
+        $this->assertNull($b->fresh()->completed_at);
+    }
+
+    /** tâches et pratiques : privées, fermées sans le droit, en lecture seule pour le rôle dédié */
+    public function test_tasks_and_practices_are_private(): void
+    {
+        $user = $this->member(['tasks']);
+        $task = $user->tasks()->create(['title' => 'Privée']);
+        $practice = $user->practices()->create(['title' => 'T', 'category' => 'Git', 'body' => 'B']);
+
+        $this->actingAs($this->member(['docs']))->get('/tasks')->assertForbidden();
+        $other = $this->member(['tasks']);
+        $this->actingAs($other)->put("/tasks/{$task->id}", ['title' => 'X', 'status' => 'todo', 'priority' => 'low'])->assertForbidden();
+        $this->actingAs($other)->patch("/tasks/{$task->id}/move", ['status' => 'done'])->assertForbidden();
+        $this->actingAs($other)->delete("/practices/{$practice->id}")->assertForbidden();
+        $this->actingAs($this->owner())->delete("/tasks/{$task->id}")->assertForbidden();
+
+        $viewer = $this->member(['tasks'], 'viewer');
+        $this->actingAs($viewer)->get('/tasks')->assertOk();
+        $this->actingAs($viewer)->post('/tasks', ['title' => 'X', 'status' => 'todo', 'priority' => 'low'])->assertForbidden();
+        $this->actingAs($viewer)->post('/practices', ['title' => 'X', 'category' => 'Y', 'body' => 'Z'])->assertForbidden();
+
+        $this->actingAs($user)->post('/practices', ['title' => 'Rebase', 'category' => 'Git', 'body' => 'git pull --rebase'])->assertSessionHasNoErrors();
+        $this->actingAs($user)->get('/practices')->assertOk();
+        $this->assertSame(2, $user->practices()->count());
+        $this->assertSame(1, Task::count());
     }
 }

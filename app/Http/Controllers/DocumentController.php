@@ -53,33 +53,8 @@ class DocumentController extends Controller
     public function update(Request $request, Document $document)
     {
         $this->guard($request, $document, write: true);
-        $v = $request->validate([
-            'title' => 'required|string|max:120',
-            'version' => ['required', 'regex:/^\d+(\.\d+){0,2}$/'],
-            'data.client' => 'nullable|string|max:120',
-            'data.classification' => 'required|in:Public,Interne,Confidentiel',
-            'data.sites' => 'required|integer|min:1|max:500',
-            'data.wan' => 'required|string|max:60',
-            'data.topology' => 'required|string|max:60',
-            'data.vlans' => 'array|max:200',
-            'data.vlans.*.id' => 'required|integer|min:1|max:4094|distinct',
-            'data.vlans.*.name' => 'required|string|max:60',
-            'data.vlans.*.subnet' => ['required', 'regex:/^(\d{1,3}\.){3}\d{1,3}\/(\d|[12]\d|3[0-2])$/'],
-            'data.vlans.*.gateway' => 'required|ipv4',
-            'data.firewall' => 'nullable|string|max:120',
-            'data.remote_access' => 'required|string|max:60',
-            'data.dmz' => 'boolean',
-            'data.nac' => 'boolean',
-            'data.flows' => 'array|max:300',
-            'data.flows.*.source' => 'required|string|max:60',
-            'data.flows.*.destination' => 'required|string|max:60',
-            'data.flows.*.service' => 'required|string|max:60',
-            'data.flows.*.action' => 'required|in:Autoriser,Bloquer',
-        ], [], [
-            'title' => 'nom du projet', 'data.vlans.*.id' => 'numéro de VLAN', 'data.vlans.*.name' => 'nom du VLAN',
-            'data.vlans.*.subnet' => 'sous-réseau', 'data.vlans.*.gateway' => 'passerelle', 'data.sites' => 'nombre de sites',
-            'data.flows.*.source' => 'source', 'data.flows.*.destination' => 'destination', 'data.flows.*.service' => 'service',
-        ]);
+        [$rules, $names] = $this->rules($document->type);
+        $v = $request->validate($rules, [], $names);
         $document->update(['title' => $v['title'], 'version' => $v['version'], 'data' => $v['data'], 'status' => 'draft']);
 
         return back();
@@ -114,5 +89,74 @@ class DocumentController extends Controller
     private function types(): array
     {
         return collect(config('documents'))->map(fn ($t, $k) => ['key' => $k, 'name' => $t['name'], 'description' => $t['description'], 'color' => $t['color'], 'active' => $t['active']])->values()->all();
+    }
+
+    /** Règles de validation et libellés des champs, selon le modèle de document. */
+    private function rules(string $type): array
+    {
+        $common = [
+            'title' => 'required|string|max:120',
+            'version' => ['required', 'regex:/^\d+(\.\d+){0,2}$/'],
+            'data.client' => 'nullable|string|max:120',
+            'data.classification' => 'required|in:Public,Interne,Confidentiel',
+        ];
+
+        return match ($type) {
+            'network' => [$common + [
+                'data.sites' => 'required|integer|min:1|max:500',
+                'data.wan' => 'required|string|max:60',
+                'data.topology' => 'required|string|max:60',
+                'data.vlans' => 'array|max:200',
+                'data.vlans.*.id' => 'required|integer|min:1|max:4094|distinct',
+                'data.vlans.*.name' => 'required|string|max:60',
+                'data.vlans.*.subnet' => ['required', 'regex:/^(\d{1,3}\.){3}\d{1,3}\/(\d|[12]\d|3[0-2])$/'],
+                'data.vlans.*.gateway' => 'required|ipv4',
+                'data.firewall' => 'nullable|string|max:120',
+                'data.remote_access' => 'required|string|max:60',
+                'data.dmz' => 'boolean',
+                'data.nac' => 'boolean',
+                'data.flows' => 'array|max:300',
+                'data.flows.*.source' => 'required|string|max:60',
+                'data.flows.*.destination' => 'required|string|max:60',
+                'data.flows.*.service' => 'required|string|max:60',
+                'data.flows.*.action' => 'required|in:Autoriser,Bloquer',
+            ], [
+                'title' => 'nom du projet', 'data.vlans.*.id' => 'numéro de VLAN', 'data.vlans.*.name' => 'nom du VLAN',
+                'data.vlans.*.subnet' => 'sous-réseau', 'data.vlans.*.gateway' => 'passerelle', 'data.sites' => 'nombre de sites',
+                'data.flows.*.source' => 'source', 'data.flows.*.destination' => 'destination', 'data.flows.*.service' => 'service',
+            ]],
+            'software' => [$common + [
+                'data.goal' => 'nullable|string|max:2000',
+                'data.style' => 'required|string|max:60',
+                'data.users' => 'nullable|string|max:120',
+                'data.availability' => 'required|string|max:20',
+                'data.constraints' => 'nullable|string|max:2000',
+                'data.components' => 'array|max:100',
+                'data.components.*.name' => 'required|string|max:60|distinct',
+                'data.components.*.layer' => 'required|in:Interface,Service,Données,Externe',
+                'data.components.*.tech' => 'nullable|string|max:80',
+                'data.components.*.role' => 'nullable|string|max:200',
+                'data.interfaces' => 'array|max:200',
+                'data.interfaces.*.source' => 'required|string|max:60',
+                'data.interfaces.*.destination' => 'required|string|max:60',
+                'data.interfaces.*.protocol' => 'required|string|max:60',
+                'data.interfaces.*.purpose' => 'nullable|string|max:200',
+                'data.hosting' => 'required|string|max:60',
+                'data.environments' => 'array',
+                'data.environments.*' => 'in:Développement,Recette,Préproduction,Production',
+                'data.auth' => 'required|string|max:60',
+                'data.encrypt_transit' => 'boolean',
+                'data.encrypt_rest' => 'boolean',
+                'data.backup' => 'nullable|string|max:200',
+                'data.monitoring' => 'nullable|string|max:200',
+                'data.decisions' => 'array|max:100',
+                'data.decisions.*.decision' => 'required|string|max:200',
+                'data.decisions.*.reason' => 'nullable|string|max:400',
+            ], [
+                'title' => 'nom du projet', 'data.components.*.name' => 'nom du composant', 'data.components.*.layer' => 'couche',
+                'data.interfaces.*.source' => 'source', 'data.interfaces.*.destination' => 'destination', 'data.interfaces.*.protocol' => 'protocole',
+                'data.decisions.*.decision' => 'décision', 'data.style' => 'style d\'architecture',
+            ]],
+        };
     }
 }

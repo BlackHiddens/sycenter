@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
-import { FileText, LucideIcon, NotebookPen, Plus, SquareCheck, Users } from 'lucide-react';
+import { AlarmClock, CircleCheckBig, FileText, ListTodo, LucideIcon, NotebookPen, Plus, SquareCheck, Timer, Users } from 'lucide-react';
 import { type CSSProperties, type ReactNode } from 'react';
 
-export const appIcons: Record<string, LucideIcon> = { 'file-text': FileText, 'square-check': SquareCheck, 'notebook-pen': NotebookPen, users: Users, plus: Plus };
+export const appIcons: Record<string, LucideIcon> = { 'file-text': FileText, 'square-check': SquareCheck, 'notebook-pen': NotebookPen, users: Users, plus: Plus, 'list-todo': ListTodo, timer: Timer, alarm: AlarmClock, done: CircleCheckBig };
 
 /** Tuile d'icône colorée : seul endroit, avec les états, où la couleur apparaît. */
 export function IconTile({ icon, color, className }: { icon: string; color: string; className?: string }) {

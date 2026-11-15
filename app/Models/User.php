@@ -56,6 +56,16 @@ class User extends Authenticatable
         ];
     }
 
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function practices(): HasMany
+    {
+        return $this->hasMany(Practice::class);
+    }
+
     public function isOwner(): bool
     {
         return $this->role === 'owner';

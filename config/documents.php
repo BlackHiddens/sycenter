@@ -11,6 +11,18 @@ return [
             'flows' => [],
         ],
     ],
-    'software' => ['name' => 'Architecture logicielle', 'description' => 'Composants, données, déploiement.', 'color' => '#7C3AED', 'active' => false],
+    'software' => [
+        'name' => 'Architecture logicielle', 'description' => 'Composants, flux, déploiement, décisions.', 'color' => '#7C3AED', 'active' => true,
+        'defaults' => [
+            'client' => '', 'classification' => 'Interne', 'goal' => '', 'style' => 'Monolithe modulaire', 'users' => '', 'availability' => '99,5 %', 'constraints' => '',
+            'components' => [
+                ['name' => 'Application web', 'layer' => 'Interface', 'tech' => '', 'role' => ''],
+                ['name' => 'API', 'layer' => 'Service', 'tech' => '', 'role' => ''],
+                ['name' => 'Base de données', 'layer' => 'Données', 'tech' => '', 'role' => ''],
+            ],
+            'interfaces' => [], 'hosting' => 'Cloud public', 'environments' => ['Production'], 'auth' => 'Identifiant et mot de passe',
+            'encrypt_transit' => true, 'encrypt_rest' => false, 'backup' => '', 'monitoring' => '', 'decisions' => [],
+        ],
+    ],
     'pra' => ['name' => 'Plan de reprise (PRA)', 'description' => 'RTO/RPO, scénarios, procédures.', 'color' => '#D97706', 'active' => false],
 ];
