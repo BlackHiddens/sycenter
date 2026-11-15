@@ -1,0 +1,10 @@
+# Hébergement mutualisé : la racine du site est ce dossier, on sert tout depuis public/.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Filet de sécurité si la réécriture est indisponible : jamais de fichiers cachés (.env, .git).
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
