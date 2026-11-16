@@ -177,4 +177,57 @@ class PlatformTest extends TestCase
         $this->assertSame(2, $user->practices()->count());
         $this->assertSame(1, Task::count());
     }
+
+    /** une tâche répétée terminée crée la suivante, une seule fois */
+    public function test_recurring_task_spawns_next_occurrence(): void
+    {
+        $user = $this->member(['tasks']);
+        $task = $user->tasks()->create(['title' => 'Sauvegarde', 'recurrence' => 'weekly', 'due_date' => today()]);
+
+        $this->actingAs($user)->patch("/tasks/{$task->id}/move", ['status' => 'done']);
+        $next = $user->tasks()->where('status', 'todo')->sole();
+        $this->assertSame('weekly', $next->recurrence);
+        $this->assertSame(today()->addWeek()->toDateString(), $next->due_date->toDateString());
+        $this->assertNull($task->fresh()->recurrence);
+
+        // Rouvrir puis terminer de nouveau l'ancienne ne recrée rien.
+        $this->actingAs($user)->patch("/tasks/{$task->id}/move", ['status' => 'todo']);
+        $this->actingAs($user)->patch("/tasks/{$task->id}/move", ['status' => 'done']);
+        $this->assertSame(2, $user->tasks()->count());
+    }
+
+    /** série, archivage automatique et pastille */
+    public function test_board_reports_streak_archive_and_badge(): void
+    {
+        $user = $this->member(['tasks']);
+        $user->tasks()->create(['title' => 'Hier', 'status' => 'done', 'completed_at' => now()->subDay()]);
+        $user->tasks()->create(['title' => 'Auj', 'status' => 'done', 'completed_at' => now()]);
+        $user->tasks()->create(['title' => 'Vieille', 'status' => 'done', 'completed_at' => now()->subDays(10)]);
+        $user->tasks()->create(['title' => 'En retard', 'due_date' => today()->subDay()]);
+        $user->practices()->create(['title' => 'T', 'category' => 'Git', 'body' => 'B']);
+
+        $this->actingAs($user)->get('/tasks')->assertInertia(fn ($page) => $page
+            ->where('streak', 2)
+            ->where('archivedCount', 1)
+            ->has('tasks', 3)
+            ->where('activity.6.count', 1)
+            ->where('review.title', 'T')
+            ->where('apps.0.key', 'tasks')->where('apps.0.badge', 2));
+    }
+
+    /** révision espacée : une fiche sue s'éloigne, une fiche oubliée revient demain */
+    public function test_practice_review_schedules_next_date(): void
+    {
+        $user = $this->member(['tasks']);
+        $practice = $user->practices()->create(['title' => 'T', 'category' => 'Git', 'body' => 'B']);
+
+        $this->actingAs($user)->post("/practices/{$practice->id}/review", ['remembered' => true]);
+        $this->assertSame(2, $practice->fresh()->interval_days);
+        $this->assertSame(today()->addDays(2)->toDateString(), $practice->fresh()->review_at->toDateString());
+        $this->actingAs($user)->get('/tasks')->assertInertia(fn ($page) => $page->where('review', null)->where('reviewDue', 0));
+
+        $this->actingAs($user)->post("/practices/{$practice->id}/review", ['remembered' => false]);
+        $this->assertSame(1, $practice->fresh()->interval_days);
+        $this->actingAs($this->member(['tasks']))->post("/practices/{$practice->id}/review", ['remembered' => true])->assertForbidden();
+    }
 }

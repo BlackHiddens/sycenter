@@ -55,6 +55,7 @@ export default function Edit({ document: doc, typeName, canWrite }: { document: 
             <div className="grid items-start gap-4 xl:grid-cols-2">
                 <div className="bg-card min-w-0 rounded-[14px] border p-4">
                     <h2 className="text-sm font-semibold">{steps[step]}</h2>
+                    <p className="text-muted-foreground mt-0.5 text-[13px]">{step === 0 ? def.contextIntro : step === last ? 'Dernière vérification avant de produire le document.' : def.intros[step - 1]}</p>
                     {errors.length > 0 && (
                         <ul role="alert" className="bg-danger-soft text-danger mt-3 list-inside list-disc rounded-md px-3 py-2 text-sm">
                             {errors.map((e) => <li key={e}>{e}</li>)}
@@ -63,10 +64,10 @@ export default function Edit({ document: doc, typeName, canWrite }: { document: 
 
                     {step === 0 && (
                         <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
-                            <Field label="Nom du projet"><input className={fieldClass} maxLength={120} disabled={!canWrite} value={form.data.title} onChange={(e) => form.setData('title', e.target.value)} /></Field>
-                            <Text f={f} k="client" label="Client / entité" />
-                            <Field label="Version"><input className={fieldClass} placeholder="1.0" disabled={!canWrite} value={form.data.version} onChange={(e) => form.setData('version', e.target.value)} /></Field>
-                            <Choice f={f} k="classification" label="Classification" options={['Interne', 'Confidentiel', 'Public']} />
+                            <Field label="Nom du projet" hint="Il devient le titre du document et le nom du fichier PDF."><input className={fieldClass} maxLength={120} disabled={!canWrite} value={form.data.title} onChange={(e) => form.setData('title', e.target.value)} /></Field>
+                            <Text f={f} k="client" label="Client / entité" hint="L'organisation pour laquelle le document est rédigé." />
+                            <Field label="Version" hint="1.0 pour une première diffusion, 0.x tant que c'est un brouillon."><input className={fieldClass} placeholder="1.0" disabled={!canWrite} value={form.data.version} onChange={(e) => form.setData('version', e.target.value)} /></Field>
+                            <Choice f={f} k="classification" label="Classification" options={['Interne', 'Confidentiel', 'Public']} hint="Qui a le droit de lire ce document. Elle figure sur chaque page." />
                             {def.context?.(f)}
                         </div>
                     )}

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
-    protected $fillable = ['user_id', 'title', 'notes', 'status', 'priority', 'tag', 'due_date', 'position', 'completed_at'];
+    protected $fillable = ['user_id', 'title', 'notes', 'status', 'priority', 'tag', 'due_date', 'position', 'completed_at', 'recurrence'];
 
     protected function casts(): array
     {

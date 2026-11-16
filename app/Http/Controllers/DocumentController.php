@@ -44,7 +44,7 @@ class DocumentController extends Controller
         $this->guard($request, $document);
 
         return Inertia::render('documents/edit', [
-            'document' => $document->only('id', 'title', 'version', 'status', 'type', 'data'),
+            'document' => ['data' => $this->data($document)] + $document->only('id', 'title', 'version', 'status', 'type'),
             'typeName' => config("documents.{$document->type}.name"),
             'canWrite' => $request->user()->canWrite(),
         ]);
@@ -67,7 +67,7 @@ class DocumentController extends Controller
             $document->update(['status' => 'generated']);
         }
 
-        return Pdf::loadView("documents.{$document->type}", ['doc' => $document, 'd' => $document->data])
+        return Pdf::loadView("documents.{$document->type}", ['doc' => $document, 'd' => $this->data($document)])
             ->download(Str::slug($document->title).'-v'.$document->version.'.pdf');
     }
 
@@ -77,6 +77,12 @@ class DocumentController extends Controller
         $document->delete();
 
         return to_route('documents.index');
+    }
+
+    /** Contenu du document, complété par les valeurs par défaut des champs ajoutés depuis sa création. */
+    private function data(Document $document): array
+    {
+        return array_merge(config("documents.{$document->type}.defaults"), $document->data);
     }
 
     private function guard(Request $request, Document $document, bool $write = false): void
@@ -98,6 +104,7 @@ class DocumentController extends Controller
             'title' => 'required|string|max:120',
             'version' => ['required', 'regex:/^\d+(\.\d+){0,2}$/'],
             'data.client' => 'nullable|string|max:120',
+            'data.goal' => 'nullable|string|max:2000',
             'data.classification' => 'required|in:Public,Interne,Confidentiel',
         ];
 
@@ -106,6 +113,23 @@ class DocumentController extends Controller
                 'data.sites' => 'required|integer|min:1|max:500',
                 'data.wan' => 'required|string|max:60',
                 'data.topology' => 'required|string|max:60',
+                'data.redundancy' => 'nullable|string|max:60',
+                'data.internet' => 'nullable|string|max:120',
+                'data.equipment' => 'array|max:100',
+                'data.equipment.*.role' => 'required|string|max:40',
+                'data.equipment.*.model' => 'nullable|string|max:80',
+                'data.equipment.*.qty' => 'required|integer|min:1|max:9999',
+                'data.equipment.*.location' => 'nullable|string|max:80',
+                'data.dhcp' => 'nullable|string|max:160',
+                'data.dns' => 'nullable|string|max:160',
+                'data.wifi' => 'nullable|string|max:60',
+                'data.guest' => 'boolean',
+                'data.monitoring' => 'nullable|string|max:200',
+                'data.backup' => 'nullable|string|max:200',
+                'data.naming' => 'nullable|string|max:200',
+                'data.risks' => 'array|max:50',
+                'data.risks.*.risk' => 'required|string|max:200',
+                'data.risks.*.mitigation' => 'nullable|string|max:300',
                 'data.vlans' => 'array|max:200',
                 'data.vlans.*.id' => 'required|integer|min:1|max:4094|distinct',
                 'data.vlans.*.name' => 'required|string|max:60',
@@ -124,9 +148,25 @@ class DocumentController extends Controller
                 'title' => 'nom du projet', 'data.vlans.*.id' => 'numéro de VLAN', 'data.vlans.*.name' => 'nom du VLAN',
                 'data.vlans.*.subnet' => 'sous-réseau', 'data.vlans.*.gateway' => 'passerelle', 'data.sites' => 'nombre de sites',
                 'data.flows.*.source' => 'source', 'data.flows.*.destination' => 'destination', 'data.flows.*.service' => 'service',
+                'data.equipment.*.qty' => 'quantité', 'data.equipment.*.role' => 'rôle', 'data.risks.*.risk' => 'risque',
             ]],
             'software' => [$common + [
-                'data.goal' => 'nullable|string|max:2000',
+                'data.scope' => 'nullable|string|max:2000',
+                'data.actors' => 'array|max:50',
+                'data.actors.*.name' => 'required|string|max:80',
+                'data.actors.*.need' => 'nullable|string|max:200',
+                'data.performance' => 'nullable|string|max:120',
+                'data.entities' => 'array|max:100',
+                'data.entities.*.name' => 'required|string|max:80',
+                'data.entities.*.description' => 'nullable|string|max:200',
+                'data.entities.*.sensitivity' => 'required|in:Publique,Interne,Personnelle,Sensible',
+                'data.retention' => 'nullable|string|max:200',
+                'data.cicd' => 'nullable|string|max:200',
+                'data.recovery' => 'nullable|string|max:200',
+                'data.risks' => 'array|max:50',
+                'data.risks.*.risk' => 'required|string|max:200',
+                'data.risks.*.impact' => 'required|in:Faible,Moyen,Fort',
+                'data.risks.*.mitigation' => 'nullable|string|max:300',
                 'data.style' => 'required|string|max:60',
                 'data.users' => 'nullable|string|max:120',
                 'data.availability' => 'required|string|max:20',
@@ -156,6 +196,7 @@ class DocumentController extends Controller
                 'title' => 'nom du projet', 'data.components.*.name' => 'nom du composant', 'data.components.*.layer' => 'couche',
                 'data.interfaces.*.source' => 'source', 'data.interfaces.*.destination' => 'destination', 'data.interfaces.*.protocol' => 'protocole',
                 'data.decisions.*.decision' => 'décision', 'data.style' => 'style d\'architecture',
+                'data.actors.*.name' => 'acteur', 'data.entities.*.name' => 'donnée', 'data.risks.*.risk' => 'risque',
             ]],
         };
     }

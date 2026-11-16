@@ -1,60 +1,57 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<title>{{ $doc->title }}</title>
-@include('documents._style')
-</head>
-<body>
-    <div class="cover">
-        <small>{{ $d['client'] ?: '—' }} · {{ $d['classification'] }} · version {{ $doc->version }} · {{ $doc->updated_at->format('d/m/Y') }}</small>
-        <h1>{{ $doc->title }}</h1>
-        <div>Document d'architecture réseau</div>
+@php
+    $kind = 'Architecture réseau';
+    $toc = ['Contexte et périmètre', 'Topologie', 'Équipements', "Plan d'adressage", 'Sécurité', 'Exploitation et risques'];
+    $multi = (int) $d['sites'] > 1;
+@endphp
+@extends('documents._layout')
+
+@section('content')
+    @include('documents._h', ['i' => 0])
+    @if ($d['goal']) <div class="callout">{{ $d['goal'] }}</div> @endif
+    @include('documents._kv', ['pairs' => ['Client / entité' => $d['client'], 'Nombre de sites' => $d['sites'], 'Rédacteur' => $doc->user->name]])
+
+    @include('documents._h', ['i' => 1])
+    <div class="diagram">
+        <div class="node dark">Internet<small>{{ $d['internet'] ?: 'Accès à préciser' }}</small></div>
+        <div class="wire"></div>
+        <div class="node">Pare-feu périmétrique<small>{{ $d['firewall'] ?: 'À préciser' }}{{ $d['dmz'] ? ' · DMZ' : '' }}</small></div>
+        <div class="wire"></div>
+        <div class="node green">Cœur de réseau<small>{{ $d['topology'] }}</small></div>
+        @if (count($d['vlans']))
+            <div class="wire"></div>
+            <div>
+                @foreach ($d['vlans'] as $v)
+                    <span class="node small">VLAN {{ $v['id'] }}<small>{{ $v['name'] }}</small></span>
+                @endforeach
+            </div>
+        @endif
     </div>
+    @include('documents._kv', ['pairs' => [
+        'Topologie LAN' => $d['topology'],
+        'Liaison inter-sites' => $multi ? $d['wan'] : 'Sans objet (site unique)',
+        'Accès Internet' => $d['internet'],
+        'Redondance' => $d['redundancy'],
+    ]])
 
-    <h2>1. Contexte et périmètre</h2>
-    <table class="kv">
-        <tr><td>Client / entité</td><td>{{ $d['client'] ?: '—' }}</td></tr>
-        <tr><td>Nombre de sites</td><td>{{ $d['sites'] }}</td></tr>
-        <tr><td>Rédacteur</td><td>{{ $doc->user->name }}</td></tr>
-    </table>
+    @include('documents._h', ['i' => 2])
+    @include('documents._rows', ['rows' => $d['equipment'], 'cols' => ['role' => 'Rôle', 'model' => 'Modèle', 'qty' => 'Qté', 'location' => 'Emplacement'], 'empty' => 'Aucun équipement listé.'])
 
-    <h2>2. Topologie</h2>
-    <table class="kv">
-        <tr><td>Topologie LAN</td><td>{{ $d['topology'] }}</td></tr>
-        <tr><td>Liaison inter-sites</td><td>{{ $d['sites'] > 1 ? $d['wan'] : 'Sans objet (site unique)' }}</td></tr>
-    </table>
+    @include('documents._h', ['i' => 3])
+    @include('documents._rows', ['rows' => $d['vlans'], 'cols' => ['id' => 'VLAN', 'name' => 'Nom', 'subnet' => 'Sous-réseau', 'gateway' => 'Passerelle'], 'empty' => 'Aucun VLAN défini.'])
+    @include('documents._kv', ['pairs' => ['DHCP' => $d['dhcp'], 'DNS' => $d['dns']]])
 
-    <h2>3. Plan d'adressage</h2>
-    @if (count($d['vlans'] ?? []))
-        <table>
-            <tr><th>VLAN</th><th>Nom</th><th>Sous-réseau</th><th>Passerelle</th></tr>
-            @foreach ($d['vlans'] as $v)
-                <tr><td>{{ $v['id'] }}</td><td>{{ $v['name'] }}</td><td>{{ $v['subnet'] }}</td><td>{{ $v['gateway'] }}</td></tr>
-            @endforeach
-        </table>
-    @else
-        <p class="empty">Aucun VLAN défini.</p>
-    @endif
+    @include('documents._h', ['i' => 4])
+    <p>
+        <span class="chip {{ $d['dmz'] ? 'on' : '' }}">DMZ : {{ $d['dmz'] ? 'oui' : 'non' }}</span>
+        <span class="chip {{ $d['nac'] ? 'on' : '' }}">802.1X filaire : {{ $d['nac'] ? 'oui' : 'non' }}</span>
+        <span class="chip {{ $d['guest'] ? 'on' : '' }}">Réseau invité : {{ $d['guest'] ? 'oui' : 'non' }}</span>
+    </p>
+    @include('documents._kv', ['pairs' => ['Pare-feu périmétrique' => $d['firewall'], 'Accès distant' => $d['remote_access'], 'Wi-Fi' => $d['wifi']]])
+    <h3>Matrice de flux</h3>
+    @include('documents._rows', ['rows' => $d['flows'], 'cols' => ['source' => 'Source', 'destination' => 'Destination', 'service' => 'Service', 'action' => 'Action'], 'empty' => 'Aucun flux décrit. Tout flux non listé est bloqué.'])
 
-    <h2>4. Sécurité</h2>
-    <table class="kv">
-        <tr><td>Pare-feu périmétrique</td><td>{{ $d['firewall'] ?: '—' }}</td></tr>
-        <tr><td>Accès distant</td><td>{{ $d['remote_access'] }}</td></tr>
-        <tr><td>DMZ</td><td>{{ $d['dmz'] ? 'Oui, pour les services exposés' : 'Non' }}</td></tr>
-        <tr><td>Contrôle d'accès 802.1X</td><td>{{ $d['nac'] ? 'Oui, sur les ports d\'accès' : 'Non' }}</td></tr>
-    </table>
-
-    <h2>5. Matrice de flux</h2>
-    @if (count($d['flows'] ?? []))
-        <table>
-            <tr><th>Source</th><th>Destination</th><th>Service</th><th>Action</th></tr>
-            @foreach ($d['flows'] as $f)
-                <tr><td>{{ $f['source'] }}</td><td>{{ $f['destination'] }}</td><td>{{ $f['service'] }}</td><td>{{ $f['action'] }}</td></tr>
-            @endforeach
-        </table>
-    @else
-        <p class="empty">Aucun flux défini. Par défaut, tout flux non listé est bloqué.</p>
-    @endif
-</body>
-</html>
+    @include('documents._h', ['i' => 5])
+    @include('documents._kv', ['pairs' => ['Supervision' => $d['monitoring'], 'Sauvegarde des configurations' => $d['backup'], 'Convention de nommage' => $d['naming']]])
+    <h3>Risques</h3>
+    @include('documents._rows', ['rows' => $d['risks'], 'cols' => ['risk' => 'Risque', 'mitigation' => 'Parade'], 'empty' => 'Aucun risque consigné.'])
+@endsection

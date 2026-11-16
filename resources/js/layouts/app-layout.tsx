@@ -58,8 +58,9 @@ export default function AppLayout({ children, breadcrumbs, title, actions, panel
                         return (
                             <RailItem key={app.key} label={app.href ? app.name : `${app.name} (à venir)`}>
                                 {app.href ? (
-                                    <Link href={app.href} aria-label={app.name} className={cn(railBtn, isActive(app.href) && 'bg-sidebar-accent text-sidebar-accent-foreground')}>
+                                    <Link href={app.href} aria-label={app.badge ? `${app.name}, ${app.badge} à voir` : app.name} className={cn(railBtn, 'relative', isActive(app.href) && 'bg-sidebar-accent text-sidebar-accent-foreground')}>
                                         <Icon className="size-[18px]" />
+                                        {app.badge > 0 && <span className="bg-destructive text-destructive-foreground absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] leading-none font-semibold">{app.badge > 9 ? '9+' : app.badge}</span>}
                                     </Link>
                                 ) : (
                                     <span aria-label={`${app.name} (à venir)`} className={cn(railBtn, 'opacity-45 hover:bg-transparent')}>

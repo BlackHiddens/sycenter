@@ -59,8 +59,16 @@ class HandleInertiaRequests extends Middleware
                 'key' => $key, 'name' => $a['name'], 'verb' => $a['verb'], 'tagline' => $a['tagline'], 'icon' => $a['icon'], 'color' => $a['color'],
                 'href' => $user->canUse($key) && $a['route'] ? route($a['route']) : null,
                 'ownerOnly' => ! empty($a['owner_only']),
+                'badge' => $key === 'tasks' && $user->canUse('tasks') ? $this->tasksBadge($user) : 0,
             ])
             ->filter(fn ($a) => $a['href'] || $user->isOwner())
             ->values()->all();
+    }
+
+    /** Ce qui attend dans l'app Tâches : échéances atteintes et fiches à réviser. */
+    private function tasksBadge($user): int
+    {
+        return $user->tasks()->where('status', '!=', 'done')->whereDate('due_date', '<=', today())->count()
+            + $user->practices()->due()->count();
     }
 }

@@ -24,7 +24,7 @@ export default function Home() {
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-sm">
                                 <span className="text-muted-foreground">{app.tagline}</span>
-                                {!app.href ? <Pill>À venir</Pill> : app.ownerOnly ? <Pill>Propriétaire seul</Pill> : <Pill tone="success">Actif</Pill>}
+                                {!app.href ? <Pill>À venir</Pill> : app.badge > 0 ? <Pill tone="danger">{`${app.badge} à voir`}</Pill> : app.ownerOnly ? <Pill>Propriétaire seul</Pill> : <Pill tone="success">Actif</Pill>}
                             </div>
                         </>
                     );

@@ -1,88 +1,59 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<title>{{ $doc->title }}</title>
-@include('documents._style')
-</head>
-<body>
-    <div class="cover">
-        <small>{{ $d['client'] ?: '—' }} · {{ $d['classification'] }} · version {{ $doc->version }} · {{ $doc->updated_at->format('d/m/Y') }}</small>
-        <h1>{{ $doc->title }}</h1>
-        <div>Document d'architecture logicielle</div>
-    </div>
+@php
+    $kind = 'Architecture logicielle';
+    $toc = ['Contexte et objectifs', 'Architecture retenue', 'Composants', 'Flux et interfaces', 'Données', 'Déploiement et sécurité', 'Décisions et risques'];
+    $layers = collect($d['components'])->groupBy('layer');
+@endphp
+@extends('documents._layout')
 
-    <h2>1. Contexte et objectifs</h2>
-    <table class="kv">
-        <tr><td>Client / entité</td><td>{{ $d['client'] ?: '—' }}</td></tr>
-        <tr><td>Rédacteur</td><td>{{ $doc->user->name }}</td></tr>
-    </table>
-    @if ($d['goal'] ?? '') <p class="text">{{ $d['goal'] }}</p> @endif
+@section('content')
+    @include('documents._h', ['i' => 0])
+    @if ($d['goal']) <div class="callout">{{ $d['goal'] }}</div> @endif
+    @if ($d['scope']) <h3>Périmètre</h3><p class="text">{{ $d['scope'] }}</p> @endif
+    <h3>Acteurs</h3>
+    @include('documents._rows', ['rows' => $d['actors'], 'cols' => ['name' => 'Acteur', 'need' => 'Attente'], 'empty' => 'Aucun acteur décrit.'])
 
-    <h2>2. Architecture retenue</h2>
-    <table class="kv">
-        <tr><td>Style d'architecture</td><td>{{ $d['style'] }}</td></tr>
-        <tr><td>Volumétrie attendue</td><td>{{ $d['users'] ?: '—' }}</td></tr>
-        <tr><td>Disponibilité visée</td><td>{{ $d['availability'] }}</td></tr>
-    </table>
-    @if ($d['constraints'] ?? '') <p class="text"><strong>Contraintes :</strong> {{ $d['constraints'] }}</p> @endif
+    @include('documents._h', ['i' => 1])
+    @include('documents._kv', ['pairs' => [
+        "Style d'architecture" => $d['style'], 'Disponibilité visée' => $d['availability'],
+        'Volumétrie attendue' => $d['users'], 'Performance attendue' => $d['performance'],
+    ]])
+    @if ($d['constraints']) <h3>Contraintes</h3><p class="text">{{ $d['constraints'] }}</p> @endif
 
-    <h2>3. Composants</h2>
-    @php $layers = collect($d['components'] ?? [])->groupBy('layer'); @endphp
+    @include('documents._h', ['i' => 2])
     @if ($layers->isNotEmpty())
-        <table class="layers">
+        <table class="layers" style="page-break-inside: avoid">
             @foreach (['Interface', 'Service', 'Données', 'Externe'] as $layer)
                 @if ($layers->has($layer))
                     <tr>
-                        <td class="layer-name">{{ $layer }}</td>
-                        <td>@foreach ($layers[$layer] as $c)<span class="box">{{ $c['name'] }}@if ($c['tech'] ?? '')<br><small>{{ $c['tech'] }}</small>@endif</span>@endforeach</td>
+                        <td class="l">{{ $layer }}</td>
+                        <td>@foreach ($layers[$layer] as $c)<span class="node small {{ $layer === 'Externe' ? '' : 'green' }}">{{ $c['name'] }}@if ($c['tech'] ?? '')<small>{{ $c['tech'] }}</small>@endif</span>@endforeach</td>
                     </tr>
                 @endif
             @endforeach
         </table>
-        <table>
-            <tr><th>Composant</th><th>Couche</th><th>Technologie</th><th>Responsabilité</th></tr>
-            @foreach ($d['components'] as $c)
-                <tr><td>{{ $c['name'] }}</td><td>{{ $c['layer'] }}</td><td>{{ ($c['tech'] ?? '') ?: '—' }}</td><td>{{ ($c['role'] ?? '') ?: '—' }}</td></tr>
-            @endforeach
-        </table>
-    @else
-        <p class="empty">Aucun composant défini.</p>
     @endif
+    @include('documents._rows', ['rows' => $d['components'], 'cols' => ['name' => 'Composant', 'layer' => 'Couche', 'tech' => 'Technologie', 'role' => 'Responsabilité'], 'empty' => 'Aucun composant défini.'])
 
-    <h2>4. Flux et interfaces</h2>
-    @if (count($d['interfaces'] ?? []))
-        <table>
-            <tr><th>Source</th><th>Destination</th><th>Protocole</th><th>Objet</th></tr>
-            @foreach ($d['interfaces'] as $i)
-                <tr><td>{{ $i['source'] }}</td><td>{{ $i['destination'] }}</td><td>{{ $i['protocol'] }}</td><td>{{ ($i['purpose'] ?? '') ?: '—' }}</td></tr>
-            @endforeach
-        </table>
-    @else
-        <p class="empty">Aucun flux défini.</p>
-    @endif
+    @include('documents._h', ['i' => 3])
+    @include('documents._rows', ['rows' => $d['interfaces'], 'cols' => ['source' => 'Source', 'destination' => 'Destination', 'protocol' => 'Protocole', 'purpose' => 'Objet'], 'empty' => 'Aucun flux défini.'])
 
-    <h2>5. Déploiement et sécurité</h2>
-    <table class="kv">
-        <tr><td>Hébergement</td><td>{{ $d['hosting'] }}</td></tr>
-        <tr><td>Environnements</td><td>{{ implode(', ', $d['environments'] ?? []) ?: '—' }}</td></tr>
-        <tr><td>Authentification</td><td>{{ $d['auth'] }}</td></tr>
-        <tr><td>Chiffrement en transit</td><td>{{ ($d['encrypt_transit'] ?? false) ? 'Oui (TLS)' : 'Non' }}</td></tr>
-        <tr><td>Chiffrement au repos</td><td>{{ ($d['encrypt_rest'] ?? false) ? 'Oui' : 'Non' }}</td></tr>
-        <tr><td>Sauvegardes</td><td>{{ ($d['backup'] ?? '') ?: '—' }}</td></tr>
-        <tr><td>Supervision</td><td>{{ ($d['monitoring'] ?? '') ?: '—' }}</td></tr>
-    </table>
+    @include('documents._h', ['i' => 4])
+    @include('documents._rows', ['rows' => $d['entities'], 'cols' => ['name' => 'Donnée', 'description' => 'Contenu', 'sensitivity' => 'Sensibilité'], 'empty' => 'Aucune donnée décrite.'])
+    @include('documents._kv', ['pairs' => ['Durée de conservation' => $d['retention']]])
 
-    <h2>6. Décisions d'architecture</h2>
-    @if (count($d['decisions'] ?? []))
-        <table>
-            <tr><th style="width:40%">Décision</th><th>Justification</th></tr>
-            @foreach ($d['decisions'] as $x)
-                <tr><td>{{ $x['decision'] }}</td><td>{{ ($x['reason'] ?? '') ?: '—' }}</td></tr>
-            @endforeach
-        </table>
-    @else
-        <p class="empty">Aucune décision consignée.</p>
-    @endif
-</body>
-</html>
+    @include('documents._h', ['i' => 5])
+    <p>
+        <span class="chip {{ $d['encrypt_transit'] ? 'on' : 'warn' }}">Chiffrement en transit : {{ $d['encrypt_transit'] ? 'oui' : 'non' }}</span>
+        <span class="chip {{ $d['encrypt_rest'] ? 'on' : '' }}">Chiffrement au repos : {{ $d['encrypt_rest'] ? 'oui' : 'non' }}</span>
+    </p>
+    @include('documents._kv', ['pairs' => [
+        'Hébergement' => $d['hosting'], 'Environnements' => implode(', ', $d['environments']), 'Authentification' => $d['auth'],
+        'Livraison' => $d['cicd'], 'Sauvegardes' => $d['backup'], 'Reprise après incident' => $d['recovery'], 'Supervision' => $d['monitoring'],
+    ]])
+
+    @include('documents._h', ['i' => 6])
+    <h3>Décisions</h3>
+    @include('documents._rows', ['rows' => $d['decisions'], 'cols' => ['decision' => 'Décision', 'reason' => 'Justification'], 'empty' => 'Aucune décision consignée.'])
+    <h3>Risques</h3>
+    @include('documents._rows', ['rows' => $d['risks'], 'cols' => ['risk' => 'Risque', 'impact' => 'Impact', 'mitigation' => 'Parade'], 'empty' => 'Aucun risque consigné.'])
+@endsection

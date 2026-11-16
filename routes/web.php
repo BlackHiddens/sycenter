@@ -19,6 +19,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('app:tasks')->group(function () {
         Route::resource('tasks', TaskController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::patch('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
+        Route::post('practices/{practice}/review', [PracticeController::class, 'review'])->name('practices.review');
         Route::resource('practices', PracticeController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 

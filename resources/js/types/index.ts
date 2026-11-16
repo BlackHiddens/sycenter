@@ -50,4 +50,5 @@ export interface AppDef {
     color: string;
     href: string | null;
     ownerOnly: boolean;
+    badge: number;
 }

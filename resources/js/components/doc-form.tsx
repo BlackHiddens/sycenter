@@ -12,6 +12,9 @@ export type FormApi = { d: Data; set: (key: string, value: unknown) => void; can
 export type DocForm = {
     subtitle: string;
     steps: string[];
+    /** Une phrase par étape : à quoi elle sert et ce qu'on attend. */
+    intros: string[];
+    contextIntro: string;
     context?: (f: FormApi) => ReactNode;
     step: (index: number, f: FormApi) => ReactNode;
     preview: (d: Data) => [string, ReactNode][];
@@ -20,35 +23,38 @@ export type DocForm = {
 type Column = { key: string; label: string; placeholder?: string; type?: string; options?: string[]; narrow?: boolean };
 const cell = 'border-input bg-background h-8 w-full min-w-32 rounded-md border px-2 text-sm disabled:opacity-60';
 
-export function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
+const Hint = ({ children }: { children?: string }) => (children ? <span className="text-muted-foreground text-xs font-normal">{children}</span> : null);
+
+export function Field({ label, children, wide, hint }: { label: string; children: ReactNode; wide?: boolean; hint?: string }) {
     return (
         <label className={`grid content-start gap-1.5 text-[13px] font-medium ${wide ? 'sm:col-span-2' : ''}`}>
             {label}
             {children}
+            <Hint>{hint}</Hint>
         </label>
     );
 }
 
-export function Text({ f, k, label, ...props }: { f: FormApi; k: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+export function Text({ f, k, label, hint, ...props }: { f: FormApi; k: string; label: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
     return (
-        <Field label={label}>
+        <Field label={label} hint={hint}>
             <input className={fieldClass} value={f.d[k] ?? ''} disabled={!f.canWrite} onChange={(e) => f.set(k, e.target.value)} {...props} />
         </Field>
     );
 }
 
-export function Area({ f, k, label, placeholder }: { f: FormApi; k: string; label: string; placeholder?: string }) {
+export function Area({ f, k, label, placeholder, hint }: { f: FormApi; k: string; label: string; placeholder?: string; hint?: string }) {
     return (
-        <Field label={label} wide>
+        <Field label={label} wide hint={hint}>
             <textarea className={`${fieldClass} h-auto py-2`} rows={3} placeholder={placeholder} value={f.d[k] ?? ''} disabled={!f.canWrite} onChange={(e) => f.set(k, e.target.value)} />
         </Field>
     );
 }
 
-export function Choice({ f, k, label, options }: { f: FormApi; k: string; label: string; options: string[] }) {
+export function Choice({ f, k, label, options, hint }: { f: FormApi; k: string; label: string; options: string[]; hint?: string }) {
     return (
-        <Field label={label}>
-            <select className={fieldClass} value={f.d[k]} disabled={!f.canWrite} onChange={(e) => f.set(k, e.target.value)}>
+        <Field label={label} hint={hint}>
+            <select className={fieldClass} value={f.d[k] ?? options[0]} disabled={!f.canWrite} onChange={(e) => f.set(k, e.target.value)}>
                 {options.map((o) => <option key={o}>{o}</option>)}
             </select>
         </Field>
@@ -83,11 +89,17 @@ export function CheckList({ f, k, label, options }: { f: FormApi; k: string; lab
 }
 
 /** Tableau de lignes éditables (VLAN, flux, composants, décisions…). */
-export function Rows({ f, k, columns, add, blank }: { f: FormApi; k: string; columns: Column[]; add: string; blank: Data }) {
+export function Rows({ f, k, columns, add, blank, title, hint }: { f: FormApi; k: string; columns: Column[]; add: string; blank: Data; title?: string; hint?: string }) {
     const rows: Data[] = f.d[k] ?? [];
     const patch = (i: number, key: string, value: string) => f.set(k, rows.map((r, j) => (j === i ? { ...r, [key]: value } : r)));
     return (
-        <div className="grid gap-3">
+        <div className="grid gap-3 sm:col-span-2">
+            {(title || hint) && (
+                <div className="grid gap-0.5">
+                    {title && <h3 className="text-[13px] font-semibold">{title}</h3>}
+                    <Hint>{hint}</Hint>
+                </div>
+            )}
             {rows.length > 0 && (
                 <div className="overflow-x-auto rounded-lg border">
                     <table className="w-full border-collapse text-sm">

@@ -34,6 +34,19 @@ class PracticeController extends Controller
         return back();
     }
 
+    /**
+     * Révision espacée : une fiche sue revient deux fois plus tard (60 jours au plus),
+     * une fiche oubliée revient le lendemain.
+     */
+    public function review(Request $request, Practice $practice)
+    {
+        $this->guard($request, $practice);
+        $days = $request->validate(['remembered' => 'required|boolean'])['remembered'] ? min($practice->interval_days * 2, 60) : 1;
+        $practice->update(['interval_days' => $days, 'review_at' => today()->addDays($days)]);
+
+        return back();
+    }
+
     public function destroy(Request $request, Practice $practice)
     {
         $this->guard($request, $practice);
