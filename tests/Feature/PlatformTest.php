@@ -291,4 +291,62 @@ class PlatformTest extends TestCase
         $this->assertNotNull($foreign->fresh());
         $this->actingAs($this->member(['tasks'], 'viewer'))->delete('/tasks/archive')->assertForbidden();
     }
+
+    /** notes : création avec modèle, enregistrement du dessin, liens calculés côté serveur */
+    public function test_note_lifecycle_and_links(): void
+    {
+        $user = $this->member(['notes']);
+        $this->actingAs($user)->post('/notes', ['title' => 'Cible', 'color' => 'blue'])->assertRedirect();
+        $target = $user->notes()->sole();
+        $this->actingAs($user)->post('/notes', ['template' => 'mindmap'])
+            ->assertRedirect(route('notes.edit', ['note' => $target->id + 1, 'template' => 'mindmap']));
+        $note = $user->notes()->latest('id')->first();
+        $this->assertStringStartsWith('Note du ', $note->title);
+
+        $this->actingAs($user)->get("/notes/{$note->id}/edit?template=mindmap")->assertOk()
+            ->assertInertia(fn ($p) => $p->where('template', 'mindmap')->has('others', 1));
+
+        $scene = json_encode(['type' => 'excalidraw', 'elements' => [
+            ['id' => 'a', 'type' => 'text', 'text' => 'Bonjour', 'link' => "https://sykerio.com/notes/{$target->id}"],
+            ['id' => 'b', 'type' => 'rectangle', 'link' => "/notes/{$note->id}"],
+            ['id' => 'c', 'type' => 'rectangle', 'link' => '/notes/999999', 'isDeleted' => true],
+            ['id' => 'd', 'type' => 'rectangle', 'link' => 'https://exemple.fr'],
+        ]]);
+        $this->actingAs($user)->putJson("/notes/{$note->id}/scene", ['scene' => $scene, 'text' => 'Bonjour', 'preview' => 'data:image/png;base64,AAAA'])->assertNoContent();
+        $note->refresh();
+        $this->assertSame([$target->id], $note->links);
+        $this->assertSame('Bonjour', $note->text);
+
+        // Une note déjà dessinée ne redemande pas son modèle ; la note liée connaît son lien entrant.
+        $this->actingAs($user)->get("/notes/{$note->id}/edit?template=mindmap")->assertInertia(fn ($p) => $p->where('template', null));
+        $this->actingAs($user)->get("/notes/{$target->id}/edit")->assertInertia(fn ($p) => $p->has('backlinks', 1)->where('backlinks.0.id', $note->id));
+
+        $this->actingAs($user)->putJson("/notes/{$note->id}/scene", ['scene' => '{"pas":"un dessin"}'])->assertStatus(422);
+        $this->actingAs($user)->putJson("/notes/{$note->id}/scene", ['scene' => $scene, 'preview' => 'javascript:alert(1)'])->assertStatus(422);
+
+        $this->actingAs($user)->put("/notes/{$note->id}", ['color' => 'rose', 'pinned' => true]);
+        $this->assertSame(['rose', true], [$note->fresh()->color, $note->fresh()->pinned]);
+        $this->actingAs($user)->put("/notes/{$note->id}", ['color' => 'fuchsia'])->assertSessionHasErrors('color');
+    }
+
+    /** notes privées, fermées sans le droit, lecture seule pour le rôle dédié */
+    public function test_notes_are_private(): void
+    {
+        $user = $this->member(['notes']);
+        $note = $user->notes()->create(['title' => 'Privée']);
+        $this->actingAs($this->member(['docs']))->get('/notes')->assertForbidden();
+        $other = $this->member(['notes']);
+        $this->actingAs($other)->get("/notes/{$note->id}/edit")->assertForbidden();
+        $this->actingAs($other)->putJson("/notes/{$note->id}/scene", ['scene' => '{"elements":[]}'])->assertForbidden();
+        $this->actingAs($this->owner())->delete("/notes/{$note->id}")->assertForbidden();
+
+        $viewer = $this->member(['notes'], 'viewer');
+        $mine = $viewer->notes()->create(['title' => 'Lecture']);
+        $this->actingAs($viewer)->get("/notes/{$mine->id}/edit")->assertOk()->assertInertia(fn ($p) => $p->where('canWrite', false));
+        $this->actingAs($viewer)->post('/notes', [])->assertForbidden();
+        $this->actingAs($viewer)->putJson("/notes/{$mine->id}/scene", ['scene' => '{"elements":[]}'])->assertForbidden();
+
+        $this->actingAs($user)->delete("/notes/{$note->id}")->assertRedirect('/notes');
+        $this->assertNull($note->fresh());
+    }
 }

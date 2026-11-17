@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 38 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 40 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -110,6 +110,33 @@ oublie les étapes de traitement : l'app doit montrer **où il en est** d'un cou
 
 Fuseau de l'application : Europe/Paris (les séries et échéances en dépendent).
 
+## App Notes
+
+Personnelle. Kevin pense en dessinant avant d'écrire : une note est une **feuille de dessin libre** (Excalidraw 0.18.1,
+licence MIT, version figée), et on retrouve une note par son dessin, sa couleur et ses liens plus que par son titre.
+
+- **Éditeur** (`notes/edit.tsx`) : Excalidraw dans la mise en page habituelle, en français, thème clair/sombre suivi.
+  Enregistrement automatique une seconde après chaque vraie modification (`notes.scene`, en `fetch` hors Inertia) :
+  dessin en JSON, texte extrait (recherche, export) et vignette PNG produite par le navigateur. Une pastille d'état
+  dit « Enregistré » / « Non enregistré ». Rôle `viewer` : toile en lecture seule.
+- **Modèles de départ** (`notes/templates.ts`, clés dans `config/notes.php`) : carte mentale, processus, matrice 2 × 2,
+  comparaison. Ils sont passés dans `initialData` (un `updateScene` trop tôt est écrasé par le chargement initial), puis
+  les textes sont **remesurés une fois la police manuscrite chargée** (sinon libellés rognés) et le dessin est cadré.
+  Les flèches sont calculées de bord à bord. La police Excalifont n'a pas tous les symboles (pas de « → »).
+- **Couleurs = thèmes** (`config/notes.php`) : six couleurs nommées, filtre dans le panneau.
+- **Liens entre notes** : un élément du dessin dont le lien pointe vers `/notes/{id}`. Le serveur recalcule la liste
+  (`Note::linksIn`, colonne `links`) ; le panneau montre liens sortants et entrants. Un clic sur un tel lien navigue
+  dans l'app (`onLinkOpen`).
+- **Retrouver** (`notes/index.tsx`) : galerie de vignettes, recherche dans le texte des dessins avec extrait surligné,
+  et **carte** (`components/note-map.tsx`) : îlots par couleur, notes reliées par leurs liens, disposition par
+  simulation de forces calculée une fois.
+- **Intégration** : le texte sélectionné devient une tâche (1re ligne = titre, suivantes = étapes).
+- **Export** : PNG, SVG, texte (Markdown), fichier `.excalidraw` réimportable. Pas de PDF pour l'instant.
+- **Construction** : `resources/js/pages/notes/edit.tsx` est déclaré comme entrée dans `vite.config.js`, sinon Rollup le
+  fond dans un morceau d'Excalidraw et Laravel ne trouve plus la page. Les polices latines d'Excalidraw sont servies
+  depuis `public/excalidraw/fonts` (`npm run excalidraw:fonts`, chemin donné par `window.EXCALIDRAW_ASSET_PATH` dans
+  `app.blade.php`) ; la police chinoise (13 Mo) est volontairement absente.
+
 ## App Accès
 
 `UserController`, réservée au propriétaire : créer un compte (il saisit lui-même le mot de passe, aucun e-mail n'est
@@ -149,7 +176,7 @@ conversation : Kevin a prévu de le changer dans hPanel ; il faudra alors renvoy
 
 ## État et suite
 
-- En ligne : plateforme, Documents (réseau, logiciel), Tâches, Accès. Branche de travail `claude/festive-wozniak-usldmb` ;
+- En ligne : plateforme, Documents (réseau, logiciel), Tâches, Notes, Accès. Branche de travail `claude/festive-wozniak-usldmb` ;
   `main` contient encore l'ancien Metronic tant que rien n'est fusionné.
-- À venir : app Notes « façon Trame » (mise de côté par Kevin pour l'instant), modèle PRA, export DOCX, traduction des
+- À venir : modèle PRA, export DOCX, traduction des
   pages de profil, envoi d'e-mails.

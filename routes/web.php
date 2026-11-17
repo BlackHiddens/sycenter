@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\NoteController;
 use App\Http\Controllers\PracticeController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
@@ -28,6 +29,11 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
         Route::post('practices/{practice}/review', [PracticeController::class, 'review'])->name('practices.review');
         Route::resource('practices', PracticeController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
+
+    Route::middleware('app:notes')->group(function () {
+        Route::resource('notes', NoteController::class)->only(['index', 'store', 'edit', 'update', 'destroy']);
+        Route::put('notes/{note}/scene', [NoteController::class, 'scene'])->name('notes.scene');
     });
 
     Route::middleware('app:access')->group(function () {
