@@ -230,4 +230,65 @@ class PlatformTest extends TestCase
         $this->assertSame(1, $practice->fresh()->interval_days);
         $this->actingAs($this->member(['tasks']))->post("/practices/{$practice->id}/review", ['remembered' => true])->assertForbidden();
     }
+
+    /** cocher les étapes fait avancer la tâche de colonne, dans les deux sens */
+    public function test_steps_move_the_task_between_columns(): void
+    {
+        $user = $this->member(['tasks']);
+        $this->actingAs($user)->post('/tasks', ['title' => 'Livrer', 'status' => 'todo', 'priority' => 'normal', 'steps' => [['text' => 'Tester'], ['text' => 'Envoyer']]])->assertSessionHasNoErrors();
+        $task = $user->tasks()->sole();
+        $this->assertSame([['text' => 'Tester', 'done' => false], ['text' => 'Envoyer', 'done' => false]], $task->steps);
+
+        $put = fn (bool $a, bool $b) => $this->actingAs($user)->put("/tasks/{$task->id}/steps", ['steps' => [['text' => 'Tester', 'done' => $a], ['text' => 'Envoyer', 'done' => $b]]]);
+        $put(true, false);
+        $this->assertSame('doing', $task->fresh()->status);
+        $put(true, true);
+        $this->assertSame('done', $task->fresh()->status);
+        $this->assertNotNull($task->fresh()->completed_at);
+        $put(false, false);
+        $this->assertSame('todo', $task->fresh()->status);
+        $this->assertNull($task->fresh()->completed_at);
+
+        // Enregistrer le formulaire ne touche pas aux étapes.
+        $this->actingAs($user)->put("/tasks/{$task->id}", ['title' => 'Livrer v2', 'status' => 'todo', 'priority' => 'high', 'steps' => []]);
+        $this->assertCount(2, $task->fresh()->steps);
+        $this->actingAs($this->member(['tasks']))->put("/tasks/{$task->id}/steps", ['steps' => []])->assertForbidden();
+    }
+
+    /** une routine répétée revient avec ses étapes décochées */
+    public function test_recurring_task_keeps_its_steps_unchecked(): void
+    {
+        $user = $this->member(['tasks']);
+        $task = $user->tasks()->create(['title' => 'Sauvegarde', 'recurrence' => 'daily', 'steps' => [['text' => 'Lancer', 'done' => false]]]);
+        $this->actingAs($user)->put("/tasks/{$task->id}/steps", ['steps' => [['text' => 'Lancer', 'done' => true]]]);
+        $this->assertSame('done', $task->fresh()->status);
+        $this->assertSame([['text' => 'Lancer', 'done' => false]], $user->tasks()->where('status', 'todo')->sole()->steps);
+    }
+
+    /** archive : à la main, en lot, automatiquement après 7 jours ; restauration et suppression */
+    public function test_archive_restore_and_purge(): void
+    {
+        $user = $this->member(['tasks']);
+        $old = $user->tasks()->create(['title' => 'Vieille', 'status' => 'done', 'completed_at' => now()->subDays(8)]);
+        $recent = $user->tasks()->create(['title' => 'Récente', 'status' => 'done', 'completed_at' => now(), 'steps' => [['text' => 'A', 'done' => true]]]);
+        $open = $user->tasks()->create(['title' => 'Ouverte']);
+        $other = $this->member(['tasks']);
+        $foreign = $other->tasks()->create(['title' => 'À un autre', 'archived_at' => now()]);
+
+        $this->actingAs($user)->get('/tasks')->assertInertia(fn ($p) => $p->has('tasks', 2)->where('archivedCount', 1));
+        $this->actingAs($user)->post("/tasks/{$open->id}/archive");
+        $this->actingAs($user)->post('/tasks/archive-done');
+        $this->actingAs($user)->get('/tasks')->assertInertia(fn ($p) => $p->has('tasks', 0)->where('archivedCount', 3));
+        $this->actingAs($user)->get('/tasks/archive')->assertOk()->assertInertia(fn ($p) => $p->has('tasks', 3)->has('weeks', 12)->where('weeks.11.count', 1));
+
+        $this->actingAs($user)->post("/tasks/{$recent->id}/restore");
+        $recent->refresh();
+        $this->assertSame(['todo', null, false], [$recent->status, $recent->archived_at, $recent->steps[0]['done']]);
+
+        $this->actingAs($other)->post("/tasks/{$old->id}/restore")->assertForbidden();
+        $this->actingAs($user)->delete('/tasks/archive');
+        $this->assertSame(['Récente'], $user->tasks()->pluck('title')->all());
+        $this->assertNotNull($foreign->fresh());
+        $this->actingAs($this->member(['tasks'], 'viewer'))->delete('/tasks/archive')->assertForbidden();
+    }
 }

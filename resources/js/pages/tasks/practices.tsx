@@ -11,7 +11,7 @@ type Practice = { id: number; title: string; category: string; body: string };
 const palette = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 const blank = { title: '', category: '', body: '' };
 
-export default function Practices({ practices, openTasks, canWrite }: { practices: Practice[]; openTasks: number; canWrite: boolean }) {
+export default function Practices({ practices, openTasks, archivedCount, canWrite }: { practices: Practice[]; openTasks: number; archivedCount: number; canWrite: boolean }) {
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState<string | null>(null);
     const [editing, setEditing] = useState<Practice | 'new' | null>(null);
@@ -39,7 +39,7 @@ export default function Practices({ practices, openTasks, canWrite }: { practice
     const err = (k: keyof typeof blank) => form.errors[k] && <span className="text-danger text-xs font-normal">{form.errors[k]}</span>;
 
     const panel = (
-        <TasksPanel current="practices" openTasks={openTasks} practiceCount={practices.length}>
+        <TasksPanel current="practices" openTasks={openTasks} practiceCount={practices.length} archivedCount={archivedCount}>
             {categories.length > 0 && (
                 <PanelSection label="Catégories" aside={<Pill>{categories.length}</Pill>}>
                     <button className={`${rowClass} ${category === null ? 'bg-accent' : ''}`} onClick={() => setCategory(null)}><span className="flex-1">Toutes</span><Pill>{practices.length}</Pill></button>

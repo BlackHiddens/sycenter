@@ -17,6 +17,13 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::middleware('app:tasks')->group(function () {
+        // Avant la ressource : "tasks/archive" ne doit pas être pris pour l'identifiant d'une tâche.
+        Route::get('tasks/archive', [TaskController::class, 'archive'])->name('tasks.archive');
+        Route::delete('tasks/archive', [TaskController::class, 'purge'])->name('tasks.purge');
+        Route::post('tasks/archive-done', [TaskController::class, 'archiveDone'])->name('tasks.archive-done');
+        Route::post('tasks/{task}/archive', [TaskController::class, 'archiveOne'])->name('tasks.archive-one');
+        Route::post('tasks/{task}/restore', [TaskController::class, 'restore'])->name('tasks.restore');
+        Route::put('tasks/{task}/steps', [TaskController::class, 'steps'])->name('tasks.steps');
         Route::resource('tasks', TaskController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::patch('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
         Route::post('practices/{practice}/review', [PracticeController::class, 'review'])->name('practices.review');

@@ -13,7 +13,8 @@ class PracticeController extends Controller
     {
         return Inertia::render('tasks/practices', [
             'practices' => $request->user()->practices()->orderBy('category')->orderBy('title')->get(['id', 'title', 'category', 'body']),
-            'openTasks' => $request->user()->tasks()->where('status', '!=', 'done')->count(),
+            'openTasks' => $request->user()->tasks()->onBoard()->where('status', '!=', 'done')->count(),
+            'archivedCount' => $request->user()->tasks()->archived()->count(),
             'canWrite' => $request->user()->canWrite(),
         ]);
     }

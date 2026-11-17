@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 35 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 38 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -81,20 +81,31 @@ d'un dossier d'architecture sans entrer dans le détail. Sortie PDF seulement ; 
 
 ## App Tâches
 
-Personnelle : chacun ne voit que ses tâches et ses fiches, propriétaire compris.
+Personnelle : chacun ne voit que ses tâches et ses fiches, propriétaire compris. Kevin se décrit comme peu structuré et
+oublie les étapes de traitement : l'app doit montrer **où il en est** d'un coup d'œil, par le dessin plus que par le texte.
 
-- **Tableau** (`tasks/index.tsx`, `TaskController`) : colonnes À faire / En cours / Terminé, glisser-déposer natif avec
-  ordre enregistré (`tasks.move`), flèches et pastille ronde pour faire la même chose au clavier ou sur mobile, ajout rapide.
-- **Automatismes**, tous dans `TaskController` :
-  - *Répétition* : une tâche `recurrence` (daily/weekly/monthly) terminée crée la suivante et perd sa propre répétition
-    (`settle()`), ce qui évite les doublons si on la rouvre.
-  - *Rangement* : une tâche terminée depuis plus de 7 jours quitte le tableau mais reste en base.
-  - *Série* : jours consécutifs avec au moins une tâche terminée, plus un graphique sur 7 jours.
-  - *Aujourd'hui* : en retard, dues ce jour ou priorité haute, calculé côté React.
+- **Étapes** (`steps`, JSON `[{text, done}]` sur la tâche ; dessin dans `components/task-steps.tsx`) : barre segmentée sur
+  chaque carte, et sous la barre la **prochaine étape**, cochable d'un clic. Dans la fenêtre d'une tâche, un parcours
+  vertical (pastilles reliées) enregistré à chaque clic par `tasks.steps`. Une fiche de bonnes pratiques peut être
+  importée comme liste d'étapes (une ligne = une étape, numéros et puces retirés).
+- **La tâche avance seule** (`Task::statusFromSteps`, recopiée côté React pour l'affichage immédiat) : une étape cochée →
+  En cours ; toutes cochées → Terminé ; tout décoché depuis Terminé → À faire. Le formulaire de la tâche n'envoie jamais
+  les étapes (`update()` les ignore) pour ne pas écraser ce qui a été coché entre-temps.
+- **Tableau** (`tasks/index.tsx`, `TaskController`) : colonnes À faire / En cours / Terminé, glisser-déposer avec ordre
+  enregistré (`tasks.move`), flèches et pastille ronde pour la même chose au clavier ou sur mobile, ajout rapide.
+  Au-delà de 3 tâches En cours, la colonne affiche un avertissement (`MAX_DOING`).
+- **Carte « Maintenant »** : retards, tâches entamées, échéances du jour, priorités hautes, avec leur prochaine étape.
+- **Répétition** : une tâche `recurrence` (daily/weekly/monthly) terminée crée la suivante, étapes décochées, et perd sa
+  propre répétition (`settle()`), ce qui évite les doublons si on la rouvre.
+- **Archive** (`tasks/archive.tsx`) : une tâche y est si `archived_at` est rempli (bouton sur la carte, la fenêtre, ou
+  « tout archiver » sur la colonne Terminé) ou si elle est terminée depuis plus de 7 jours (`Task::ARCHIVE_AFTER_DAYS`,
+  scopes `archived` / `onBoard`). Depuis l'archive : remettre à faire (étapes décochées), supprimer, ou tout vider.
+  Graphique des tâches terminées sur 12 semaines.
+- **Série** : jours consécutifs avec au moins une tâche terminée, plus un graphique sur 7 jours.
 - **Bonnes pratiques** (`tasks/practices.tsx`, `PracticeController`) : fiches par catégorie, recherche, copie. Révision
   espacée : la fiche due s'affiche sur le tableau, réponse masquée ; « Je savais » double l'intervalle (60 jours au plus),
   « À revoir » la ramène au lendemain (`review_at`, `interval_days`).
-- **Pastille** sur le rail et l'accueil : tâches à échéance atteinte + fiches à réviser.
+- **Pastille** sur le rail et l'accueil : tâches du tableau à échéance atteinte + fiches à réviser.
 
 Fuseau de l'application : Europe/Paris (les séries et échéances en dépendent).
 
