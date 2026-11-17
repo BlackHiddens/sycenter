@@ -26,7 +26,7 @@
                 @if ($layers->has($layer))
                     <tr>
                         <td class="l">{{ $layer }}</td>
-                        <td>@foreach ($layers[$layer] as $c)<span class="node small {{ $layer === 'Externe' ? '' : 'green' }}">{{ $c['name'] }}@if ($c['tech'] ?? '')<small>{{ $c['tech'] }}</small>@endif</span>@endforeach</td>
+                        <td>@foreach ($layers[$layer] as $c)<span class="node small {{ $layer === 'Externe' ? '' : 'soft' }}">{{ $c['name'] }}@if ($c['tech'] ?? '')<small>{{ $c['tech'] }}</small>@endif</span>@endforeach</td>
                     </tr>
                 @endif
             @endforeach

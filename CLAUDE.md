@@ -70,8 +70,9 @@ Un modèle de document, c'est quatre endroits à garder alignés :
 3. `resources/js/pages/documents/forms/<type>.tsx` : étapes, phrase d'introduction par étape, champs, aperçu en direct.
    À déclarer dans `forms` de `edit.tsx`. Composants de champ dans `components/doc-form.tsx` ; chaque champ a un `hint`
    (aide affichée sous le champ : Kevin veut comprendre quoi écrire sans deviner).
-4. `resources/views/documents/<type>.blade.php` : le PDF, qui étend `_layout.blade.php` (page de garde avec logo, sommaire,
-   fiche, en-tête et pied de page) et utilise `_h`, `_kv`, `_rows`. Dompdf : pas de flexbox ni de grille, mise en page
+4. `resources/views/documents/<type>.blade.php` : le PDF, qui étend `_layout.blade.php` (page de garde, sommaire,
+   fiche, en-tête et pied de page). **Les PDF sont neutres** : noir, gris et filets fins, sans logo ni vert Sykerio
+   (demande de Kevin : ce sont des documents pour ses clients). Le gabarit et utilise `_h`, `_kv`, `_rows`. Dompdf : pas de flexbox ni de grille, mise en page
    par tableaux et `inline-block` ; police DejaVu Sans.
 
 Modèles actifs : `network` (architecture réseau, avec schéma de topologie) et `software` (architecture logicielle, avec

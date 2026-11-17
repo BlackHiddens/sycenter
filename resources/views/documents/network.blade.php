@@ -16,7 +16,7 @@
         <div class="wire"></div>
         <div class="node">Pare-feu périmétrique<small>{{ $d['firewall'] ?: 'À préciser' }}{{ $d['dmz'] ? ' · DMZ' : '' }}</small></div>
         <div class="wire"></div>
-        <div class="node green">Cœur de réseau<small>{{ $d['topology'] }}</small></div>
+        <div class="node soft">Cœur de réseau<small>{{ $d['topology'] }}</small></div>
         @if (count($d['vlans']))
             <div class="wire"></div>
             <div>
