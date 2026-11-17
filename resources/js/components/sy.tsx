@@ -9,10 +9,10 @@ export function IconTile({ icon, color, className }: { icon: string; color: stri
     const Icon = appIcons[icon] ?? FileText;
     return (
         <span
-            className={cn('grid size-[38px] shrink-0 place-items-center rounded-[10px] text-white', className)}
+            className={cn('grid size-[2.375rem] shrink-0 place-items-center rounded-[0.625rem] text-white', className)}
             style={{ background: `linear-gradient(160deg, color-mix(in srgb, ${color} 72%, #fff), ${color})` } as CSSProperties}
         >
-            <Icon className="size-[18px]" />
+            <Icon className="size-[1.125rem]" />
         </span>
     );
 }
@@ -32,7 +32,7 @@ export function PanelSection({ label, aside, children }: { label?: string; aside
     return (
         <div className="grid gap-0.5 border-b px-3 py-3.5 last:border-b-0">
             {label && (
-                <div className="text-muted-foreground flex items-center justify-between px-1 pb-1.5 text-[11px] tracking-wider uppercase">
+                <div className="text-muted-foreground flex items-center justify-between px-1 pb-1.5 text-[0.6875rem] tracking-wider uppercase">
                     {label}
                     {aside}
                 </div>

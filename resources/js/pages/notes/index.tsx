@@ -109,7 +109,7 @@ export default function Notes({ notes, colors, templates, canWrite }: Props) {
             </label>
 
             {notes.length === 0 ? (
-                <div className="bg-card grid gap-4 rounded-[14px] border p-6">
+                <div className="bg-card grid gap-4 rounded-[0.875rem] border p-6">
                     <div className="flex items-center gap-4">
                         <span className="bg-muted text-muted-foreground grid size-12 shrink-0 place-items-center rounded-full"><Shapes className="size-6" /></span>
                         <div>
@@ -134,7 +134,7 @@ export default function Notes({ notes, colors, templates, canWrite }: Props) {
             ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-3.5">
                     {shown.map((n) => (
-                        <Link key={n.id} href={route('notes.edit', n.id)} className="bg-card hover:border-muted-foreground group grid min-w-0 overflow-hidden rounded-[14px] border transition-colors">
+                        <Link key={n.id} href={route('notes.edit', n.id)} className="bg-card hover:border-muted-foreground group grid min-w-0 overflow-hidden rounded-[0.875rem] border transition-colors">
                             <div className="bg-muted relative aspect-[4/3] border-b">
                                 <span className="absolute inset-x-0 top-0 h-1" style={{ background: colors[n.color]?.hex }} />
                                 {n.preview
@@ -170,8 +170,8 @@ export default function Notes({ notes, colors, templates, canWrite }: Props) {
                                 </button>
                             ))}
                         </div>
-                        <label className="grid gap-1.5 text-[13px] font-medium">Titre<input className={fieldClass} maxLength={120} placeholder="Facultatif" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
-                        <div className="grid gap-1.5 text-[13px] font-medium">
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Titre<input className={fieldClass} maxLength={120} placeholder="Facultatif" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
+                        <div className="grid gap-1.5 text-[0.8125rem] font-medium">
                             Thème
                             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Couleur de la note">
                                 {Object.entries(colors).map(([key, c]) => (

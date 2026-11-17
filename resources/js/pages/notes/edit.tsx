@@ -264,7 +264,7 @@ export default function NoteEdit({ note, template, others, backlinks, colors, ca
     const noteRow = (n: Ref, icon: React.ReactNode) => (
         <Link key={n.id} href={route('notes.edit', n.id)} className={rowClass}>
             {icon}
-            <i className="size-[7px] shrink-0 rounded-full" style={{ background: colors[n.color]?.hex }} />
+            <i className="size-[0.4375rem] shrink-0 rounded-full" style={{ background: colors[n.color]?.hex }} />
             <span className="min-w-0 flex-1 truncate">{n.title}</span>
         </Link>
     );
@@ -334,7 +334,7 @@ export default function NoteEdit({ note, template, others, backlinks, colors, ca
             {(flash || error) && (
                 <p role="status" className={cn('rounded-lg px-3 py-2 text-sm', error ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success')}>{error || flash}</p>
             )}
-            <div className="h-[calc(100svh-7rem)] min-h-[480px] overflow-hidden rounded-[14px] border">
+            <div className="h-[calc(100svh-6.5rem)] min-h-[26rem] overflow-hidden rounded-[0.875rem] border max-md:h-[calc(100svh-10rem)]">
                 <Excalidraw
                     excalidrawAPI={setApi}
                     initialData={initialData}

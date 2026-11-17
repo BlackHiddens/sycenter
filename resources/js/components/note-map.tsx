@@ -84,8 +84,8 @@ export default function NoteMap({ notes, colors }: { notes: MapNote[]; colors: C
     const open = (id: number) => router.visit(route('notes.edit', id));
 
     return (
-        <div className="bg-card overflow-x-auto rounded-[14px] border">
-            <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full min-w-[720px]" role="group" aria-label="Carte des notes, regroupées par couleur et reliées par leurs liens">
+        <div className="bg-card overflow-x-auto rounded-[0.875rem] border">
+            <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full min-w-[45rem]" role="group" aria-label="Carte des notes, regroupées par couleur et reliées par leurs liens">
                 {islands.map((g) => (
                     <g key={g.key}>
                         <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={22} fill={colors[g.key].hex} fillOpacity={0.07} stroke={colors[g.key].hex} strokeOpacity={0.35} strokeDasharray="5 6" />

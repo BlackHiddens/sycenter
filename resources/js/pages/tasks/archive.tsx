@@ -27,15 +27,15 @@ export default function TasksArchive({ tasks, weeks, openTasks, practiceCount, c
             actions={canWrite && tasks.length > 0 && <Button size="sm" variant="outline" onClick={() => setConfirm(true)}><Trash2 /> Vider l'archive</Button>}>
             <Head title="Archive des tâches" />
 
-            <section className="bg-card grid gap-4 rounded-[14px] border p-4" aria-label="Rythme">
+            <section className="bg-card grid gap-4 rounded-[0.875rem] border p-4" aria-label="Rythme">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 className="text-muted-foreground text-[11px] tracking-wider uppercase">12 dernières semaines</h2>
+                    <h2 className="text-muted-foreground text-[0.6875rem] tracking-wider uppercase">12 dernières semaines</h2>
                     <p className="text-2xl font-medium tabular-nums">{total}<span className="text-muted-foreground ml-1.5 text-xs font-normal">{total > 1 ? 'tâches terminées' : 'tâche terminée'}</span></p>
                 </div>
                 <div className="flex h-24 items-end gap-1.5" role="img" aria-label={`Tâches terminées par semaine : ${weeks.map((w) => w.count).join(', ')}`}>
                     {weeks.map((w, i) => (
                         <div key={w.week} className="grid min-w-0 flex-1 justify-items-center gap-1.5" title={`Semaine du ${date(w.week).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : ${w.count}`}>
-                            <span className="text-muted-foreground text-[10px] tabular-nums">{w.count || ''}</span>
+                            <span className="text-muted-foreground text-[0.625rem] tabular-nums">{w.count || ''}</span>
                             <span className="w-full max-w-7 rounded-md" style={{ height: `${w.count ? 6 + (w.count / peak) * 58 : 3}px`, background: w.count ? (i === weeks.length - 1 ? 'var(--chart-2)' : 'color-mix(in srgb, var(--chart-2) 55%, var(--card))') : 'var(--input)' }} />
                         </div>
                     ))}
@@ -43,7 +43,7 @@ export default function TasksArchive({ tasks, weeks, openTasks, practiceCount, c
             </section>
 
             {tasks.length === 0 ? (
-                <div className="bg-card flex items-center gap-4 rounded-[14px] border p-6">
+                <div className="bg-card flex items-center gap-4 rounded-[0.875rem] border p-6">
                     <span className="bg-muted text-muted-foreground grid size-12 place-items-center rounded-full"><Archive className="size-6" /></span>
                     <div>
                         <p className="text-sm font-medium">L'archive est vide.</p>
@@ -52,7 +52,7 @@ export default function TasksArchive({ tasks, weeks, openTasks, practiceCount, c
                 </div>
             ) : (
                 Object.entries(groups).map(([label, list]) => (
-                    <section key={label} className="bg-card overflow-hidden rounded-[14px] border" aria-label={label}>
+                    <section key={label} className="bg-card overflow-hidden rounded-[0.875rem] border" aria-label={label}>
                         <h2 className="bg-muted/50 flex items-center justify-between border-b px-4 py-2.5 text-sm font-semibold first-letter:uppercase">{label}<Pill>{list.length}</Pill></h2>
                         <ul className="divide-y">
                             {list.map((t) => (

@@ -12,11 +12,11 @@ function LayerDiagram({ components }: { components: Data[] }) {
         <div className="mt-1.5 grid gap-1.5">
             {used.map((layer) => (
                 <div key={layer} className="bg-muted/60 flex flex-wrap items-center gap-1.5 rounded-lg border-l-[3px] p-2" style={{ borderLeftColor: layerColor[layer] }}>
-                    <span className="w-16 shrink-0 text-[10.5px] tracking-wider uppercase">{layer}</span>
+                    <span className="w-16 shrink-0 text-[0.6562rem] tracking-wider uppercase">{layer}</span>
                     {components.filter((c) => c.layer === layer).map((c, i) => (
                         <span key={i} className="bg-card text-foreground rounded-md border px-2 py-1 leading-tight font-medium">
                             {c.name || 'Sans nom'}
-                            {c.tech && <span className="text-muted-foreground block text-[11px] font-normal">{c.tech}</span>}
+                            {c.tech && <span className="text-muted-foreground block text-[0.6875rem] font-normal">{c.tech}</span>}
                         </span>
                     ))}
                 </div>

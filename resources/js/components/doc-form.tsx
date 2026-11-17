@@ -27,7 +27,7 @@ const Hint = ({ children }: { children?: string }) => (children ? <span classNam
 
 export function Field({ label, children, wide, hint }: { label: string; children: ReactNode; wide?: boolean; hint?: string }) {
     return (
-        <label className={`grid content-start gap-1.5 text-[13px] font-medium ${wide ? 'sm:col-span-2' : ''}`}>
+        <label className={`grid content-start gap-1.5 text-[0.8125rem] font-medium ${wide ? 'sm:col-span-2' : ''}`}>
             {label}
             {children}
             <Hint>{hint}</Hint>
@@ -63,7 +63,7 @@ export function Choice({ f, k, label, options, hint }: { f: FormApi; k: string; 
 
 export function Check({ f, k, label }: { f: FormApi; k: string; label: string }) {
     return (
-        <label className="flex items-center gap-2 text-[13px] font-medium">
+        <label className="flex items-center gap-2 text-[0.8125rem] font-medium">
             <input type="checkbox" className="size-4" disabled={!f.canWrite} checked={!!f.d[k]} onChange={(e) => f.set(k, e.target.checked)} />
             {label}
         </label>
@@ -75,7 +75,7 @@ export function CheckList({ f, k, label, options }: { f: FormApi; k: string; lab
     const values: string[] = f.d[k] ?? [];
     return (
         <fieldset className="grid content-start gap-2 sm:col-span-2">
-            <legend className="mb-1.5 text-[13px] font-medium">{label}</legend>
+            <legend className="mb-1.5 text-[0.8125rem] font-medium">{label}</legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
                 {options.map((o) => (
                     <label key={o} className="flex items-center gap-2 text-sm">
@@ -96,7 +96,7 @@ export function Rows({ f, k, columns, add, blank, title, hint }: { f: FormApi; k
         <div className="grid gap-3 sm:col-span-2">
             {(title || hint) && (
                 <div className="grid gap-0.5">
-                    {title && <h3 className="text-[13px] font-semibold">{title}</h3>}
+                    {title && <h3 className="text-[0.8125rem] font-semibold">{title}</h3>}
                     <Hint>{hint}</Hint>
                 </div>
             )}

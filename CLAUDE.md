@@ -55,6 +55,14 @@ d'app et aux états. Ne pas copier le code de ce template, seulement son langage
   dans un composant, sauf les couleurs d'icônes d'app (non textuelles).
 - Tout écran doit tenir à 400 px de large sans défilement horizontal. Piège récurrent : une grille CSS sans colonne
   explicite s'élargit avec son contenu ; mettre `grid-cols-[minmax(0,1fr)]` et `min-w-0`.
+- **Petits écrans** (Kevin travaille parfois sur un portable) :
+  - *Densité* : la taille de base passe à 15 px sous 1440 px de large et à 14 px entre 768 et 1100 px
+    (`app.css`). Tout est en `rem`, donc tout se compacte d'un coup ; **ne pas réintroduire de tailles en `px`** dans
+    les classes (seuls les traits de 1 à 3 px). Les seuils `md:`/`xl:` restent calés sur la vraie largeur d'écran.
+  - *Panneau de l'app* : colonne de 16 rem repliable à partir de 1400 px (choix mémorisé), tiroir ouvert par un bouton
+    dans l'en-tête en dessous (`app-layout.tsx`).
+  - *Téléphone* : le rail devient une barre en bas de l'écran ; les apps « à venir » y sont masquées.
+  - *Documents* : sous 1280 px, bascule « Saisie / Aperçu » au lieu d'empiler les deux.
 
 ## App Documents
 

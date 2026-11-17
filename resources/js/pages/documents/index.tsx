@@ -19,7 +19,7 @@ export default function Documents({ documents, types, canWrite }: { documents: D
             <PanelSection label="Modèles" aside={<Pill>{`${ready.length} sur ${types.length}`}</Pill>}>
                 {types.map((t) => (
                     <button key={t.key} className={rowClass} disabled={!t.active || !canWrite} onClick={() => create(t.key)} title={t.description}>
-                        <i className="size-[7px] shrink-0 rounded-full" style={{ background: t.color }} />
+                        <i className="size-[0.4375rem] shrink-0 rounded-full" style={{ background: t.color }} />
                         <span className="min-w-0 flex-1 truncate">{t.name}</span>
                         {t.active ? <Pill tone="success">Prêt</Pill> : <Pill>À venir</Pill>}
                     </button>
@@ -41,7 +41,7 @@ export default function Documents({ documents, types, canWrite }: { documents: D
     return (
         <AppLayout title="Mes documents" panel={panel} panelTitle="Documents" actions={canWrite && ready[0] && <Button size="sm" onClick={() => create(ready[0].key)}>Nouveau document</Button>}>
             <Head title="Documents" />
-            <div className="bg-card overflow-x-auto rounded-[14px] border">
+            <div className="bg-card overflow-x-auto rounded-[0.875rem] border">
                 <div className="border-b px-4 py-3.5">
                     <h2 className="text-sm font-semibold">Tous les documents</h2>
                     <p className="text-muted-foreground text-sm">Un document reste en brouillon jusqu'à sa génération en PDF.</p>

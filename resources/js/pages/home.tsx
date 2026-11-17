@@ -5,7 +5,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 
 export default function Home() {
     const { apps, auth } = usePage<SharedData>().props;
-    const tile = 'bg-card grid gap-3 rounded-[14px] border p-4 text-left';
+    const tile = 'bg-card grid gap-3 rounded-[0.875rem] border p-4 text-left';
 
     return (
         <AppLayout title="Mes applications" actions={auth.user.role === 'owner' && <Pill>Propriétaire</Pill>}>

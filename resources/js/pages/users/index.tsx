@@ -32,7 +32,7 @@ export default function Users({ users, grantable }: { users: User[]; grantable: 
     return (
         <AppLayout title="Accès" actions={<Button size="sm" onClick={() => open('new')}>Ajouter un utilisateur</Button>}>
             <Head title="Accès" />
-            <div className="bg-card overflow-x-auto rounded-[14px] border">
+            <div className="bg-card overflow-x-auto rounded-[0.875rem] border">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3.5">
                     <div>
                         <h2 className="text-sm font-semibold">Utilisateurs</h2>
@@ -74,12 +74,12 @@ export default function Users({ users, grantable }: { users: User[]; grantable: 
                         </DialogHeader>
                         {isNew && (
                             <>
-                                <label className="grid gap-1.5 text-[13px] font-medium">Nom<input className={fieldClass} required value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />{err('name')}</label>
-                                <label className="grid gap-1.5 text-[13px] font-medium">E-mail<input className={fieldClass} type="email" required value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />{err('email')}</label>
+                                <label className="grid gap-1.5 text-[0.8125rem] font-medium">Nom<input className={fieldClass} required value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />{err('name')}</label>
+                                <label className="grid gap-1.5 text-[0.8125rem] font-medium">E-mail<input className={fieldClass} type="email" required value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />{err('email')}</label>
                             </>
                         )}
-                        <label className="grid gap-1.5 text-[13px] font-medium">Mot de passe<input className={fieldClass} type="password" autoComplete="new-password" required={isNew} minLength={8} value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} />{err('password')}</label>
-                        <label className="grid gap-1.5 text-[13px] font-medium">
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Mot de passe<input className={fieldClass} type="password" autoComplete="new-password" required={isNew} minLength={8} value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} />{err('password')}</label>
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">
                             Rôle
                             <select className={fieldClass} value={form.data.role} onChange={(e) => form.setData('role', e.target.value)}>
                                 <option value="user">Utilisateur (crée et modifie)</option>
@@ -87,7 +87,7 @@ export default function Users({ users, grantable }: { users: User[]; grantable: 
                             </select>
                         </label>
                         <fieldset className="grid gap-2">
-                            <legend className="mb-1.5 text-[13px] font-medium">Apps autorisées</legend>
+                            <legend className="mb-1.5 text-[0.8125rem] font-medium">Apps autorisées</legend>
                             {grantable.map((g) => (
                                 <label key={g.key} className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4" checked={form.data.apps.includes(g.key)} onChange={() => toggle(g.key)} />{g.name}</label>
                             ))}

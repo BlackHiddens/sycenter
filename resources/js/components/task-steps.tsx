@@ -57,7 +57,7 @@ export function StepPath({ steps, onChange, templates, canWrite }: { steps: Step
                 <ol className="grid">
                     {steps.map((s, i) => (
                         <li key={i} className="group relative flex items-start gap-3 pb-3 last:pb-0">
-                            {i < steps.length - 1 && <span aria-hidden className={cn('absolute top-6 bottom-0 left-[11px] w-0.5', s.done ? 'bg-success' : 'bg-input')} />}
+                            {i < steps.length - 1 && <span aria-hidden className={cn('absolute top-6 bottom-0 left-[0.6875rem] w-0.5', s.done ? 'bg-success' : 'bg-input')} />}
                             <button type="button" disabled={!canWrite} onClick={() => onChange(steps.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))}
                                 aria-label={s.done ? `Décocher l'étape ${s.text}` : `Cocher l'étape ${s.text}`}
                                 className={cn('relative grid size-6 shrink-0 place-items-center rounded-full border-2 text-xs font-semibold tabular-nums transition-colors',

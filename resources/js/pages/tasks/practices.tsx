@@ -45,7 +45,7 @@ export default function Practices({ practices, openTasks, archivedCount, canWrit
                     <button className={`${rowClass} ${category === null ? 'bg-accent' : ''}`} onClick={() => setCategory(null)}><span className="flex-1">Toutes</span><Pill>{practices.length}</Pill></button>
                     {categories.map((c) => (
                         <button key={c} className={`${rowClass} ${category === c ? 'bg-accent' : ''}`} onClick={() => setCategory(category === c ? null : c)} aria-pressed={category === c}>
-                            <i className="size-[7px] shrink-0 rounded-full" style={{ background: color(c) }} />
+                            <i className="size-[0.4375rem] shrink-0 rounded-full" style={{ background: color(c) }} />
                             <span className="min-w-0 flex-1 truncate">{c}</span>
                             <Pill>{practices.filter((p) => p.category === c).length}</Pill>
                         </button>
@@ -65,7 +65,7 @@ export default function Practices({ practices, openTasks, archivedCount, canWrit
             </label>
 
             {practices.length === 0 ? (
-                <div className="bg-card rounded-[14px] border p-6 text-sm">
+                <div className="bg-card rounded-[0.875rem] border p-6 text-sm">
                     <p className="font-medium">Ton carnet est vide.</p>
                     <p className="text-muted-foreground mt-1">Note ici ce que tu ne veux pas rechercher deux fois : une commande, une convention de nommage, une liste de vérification avant mise en ligne.</p>
                 </div>
@@ -74,7 +74,7 @@ export default function Practices({ practices, openTasks, archivedCount, canWrit
             ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] items-start gap-3.5">
                     {shown.map((p) => (
-                        <article key={p.id} className="bg-card grid gap-2.5 rounded-[14px] border border-t-[3px] p-4" style={{ borderTopColor: color(p.category) }}>
+                        <article key={p.id} className="bg-card grid gap-2.5 rounded-[0.875rem] border border-t-[3px] p-4" style={{ borderTopColor: color(p.category) }}>
                             <div className="flex items-start gap-2">
                                 <div className="min-w-0 flex-1">
                                     <Pill>{p.category}</Pill>
@@ -83,7 +83,7 @@ export default function Practices({ practices, openTasks, archivedCount, canWrit
                                 <Button variant="ghost" size="sm" className="size-7 p-0" aria-label={`Copier le contenu de ${p.title}`} onClick={() => copy(p)}>{copied === p.id ? <Check /> : <Copy />}</Button>
                                 {canWrite && <Button variant="ghost" size="sm" className="size-7 p-0" aria-label={`Modifier ${p.title}`} onClick={() => open(p)}><Pencil /></Button>}
                             </div>
-                            <p className="text-muted-foreground text-[13px] break-words whitespace-pre-wrap">{p.body}</p>
+                            <p className="text-muted-foreground text-[0.8125rem] break-words whitespace-pre-wrap">{p.body}</p>
                         </article>
                     ))}
                 </div>
@@ -96,9 +96,9 @@ export default function Practices({ practices, openTasks, archivedCount, canWrit
                             <DialogTitle>{editing === 'new' ? 'Nouvelle bonne pratique' : 'Modifier la pratique'}</DialogTitle>
                             <DialogDescription>Une idée par fiche, pour la retrouver vite.</DialogDescription>
                         </DialogHeader>
-                        <label className="grid gap-1.5 text-[13px] font-medium">Titre<input className={fieldClass} required maxLength={160} autoFocus value={form.data.title} onChange={(e) => form.setData('title', e.target.value)} />{err('title')}</label>
-                        <label className="grid gap-1.5 text-[13px] font-medium">Catégorie<input className={fieldClass} required maxLength={40} list="practice-categories" placeholder="Git, Laravel, Réseau…" value={form.data.category} onChange={(e) => form.setData('category', e.target.value)} /><datalist id="practice-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>{err('category')}</label>
-                        <label className="grid gap-1.5 text-[13px] font-medium">Contenu<textarea className={`${fieldClass} h-auto py-2`} required rows={7} value={form.data.body} onChange={(e) => form.setData('body', e.target.value)} />{err('body')}</label>
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Titre<input className={fieldClass} required maxLength={160} autoFocus value={form.data.title} onChange={(e) => form.setData('title', e.target.value)} />{err('title')}</label>
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Catégorie<input className={fieldClass} required maxLength={40} list="practice-categories" placeholder="Git, Laravel, Réseau…" value={form.data.category} onChange={(e) => form.setData('category', e.target.value)} /><datalist id="practice-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>{err('category')}</label>
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Contenu<textarea className={`${fieldClass} h-auto py-2`} required rows={7} value={form.data.body} onChange={(e) => form.setData('body', e.target.value)} />{err('body')}</label>
                         <DialogFooter className="sm:justify-between">
                             {editing !== 'new' ? <Button type="button" variant="outline" onClick={remove}><Trash2 /> Supprimer</Button> : <span />}
                             <Button type="submit" disabled={form.processing}>{editing === 'new' ? 'Ajouter' : 'Enregistrer'}</Button>

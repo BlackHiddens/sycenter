@@ -5,7 +5,8 @@ import AppLayout from '@/layouts/app-layout';
 import network from '@/pages/documents/forms/network';
 import software from '@/pages/documents/forms/software';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Download } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Download, Eye, PencilLine } from 'lucide-react';
 import { useState } from 'react';
 
 type Doc = { id: number; title: string; version: string; status: string; type: string; data: Data };
@@ -18,6 +19,8 @@ export default function Edit({ document: doc, typeName, canWrite }: { document: 
     const steps = ['Contexte', ...def.steps, 'Génération'];
     const form = useForm({ title: doc.title, version: doc.version, data: doc.data });
     const [step, setStep] = useState(0);
+    // Sous 1280 px, saisie et aperçu ne tiennent pas côte à côte : on bascule de l'un à l'autre.
+    const [pane, setPane] = useState<'form' | 'preview'>('form');
     const d = form.data.data;
     const f: FormApi = { d, canWrite, set: (key, value) => form.setData('data', { ...d, [key]: value }) };
     const errors = [...new Set(Object.values(form.errors as Record<string, string>))];
@@ -35,7 +38,7 @@ export default function Edit({ document: doc, typeName, canWrite }: { document: 
             <PanelSection label="Étapes" aside={<Pill>{`${step + 1} sur ${steps.length}`}</Pill>}>
                 {steps.map((s, i) => (
                     <button key={s} className={`${rowClass} ${i === step ? 'bg-accent' : ''}`} onClick={() => go(i)} aria-current={i === step ? 'step' : undefined}>
-                        <i className="size-[7px] shrink-0 rounded-full" style={{ background: i < step ? 'var(--chart-2)' : i === step ? 'var(--chart-1)' : 'var(--input)' }} />
+                        <i className="size-[0.4375rem] shrink-0 rounded-full" style={{ background: i < step ? 'var(--chart-2)' : i === step ? 'var(--chart-1)' : 'var(--input)' }} />
                         <span className="flex-1">{s}</span>
                         {i < step ? <Pill tone="success">Fait</Pill> : <Pill>{i + 1}</Pill>}
                     </button>
@@ -52,10 +55,18 @@ export default function Edit({ document: doc, typeName, canWrite }: { document: 
     return (
         <AppLayout title={form.data.title || 'Sans titre'} panel={panel} panelTitle={typeName} actions={<Button variant="outline" size="sm" asChild><Link href={route('documents.index')}>Quitter</Link></Button>}>
             <Head title={form.data.title} />
+            <div className="bg-muted inline-flex w-fit gap-1 rounded-lg p-1 xl:hidden" role="tablist" aria-label="Affichage">
+                {([['form', PencilLine, 'Saisie'], ['preview', Eye, 'Aperçu']] as const).map(([key, Icon, label]) => (
+                    <button key={key} role="tab" aria-selected={pane === key} onClick={() => setPane(key)}
+                        className={cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors', pane === key ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground')}>
+                        <Icon className="size-4" />{label}
+                    </button>
+                ))}
+            </div>
             <div className="grid items-start gap-4 xl:grid-cols-2">
-                <div className="bg-card min-w-0 rounded-[14px] border p-4">
+                <div className={cn('bg-card min-w-0 rounded-[0.875rem] border p-4', pane === 'preview' && 'max-xl:hidden')}>
                     <h2 className="text-sm font-semibold">{steps[step]}</h2>
-                    <p className="text-muted-foreground mt-0.5 text-[13px]">{step === 0 ? def.contextIntro : step === last ? 'Dernière vérification avant de produire le document.' : def.intros[step - 1]}</p>
+                    <p className="text-muted-foreground mt-0.5 text-[0.8125rem]">{step === 0 ? def.contextIntro : step === last ? 'Dernière vérification avant de produire le document.' : def.intros[step - 1]}</p>
                     {errors.length > 0 && (
                         <ul role="alert" className="bg-danger-soft text-danger mt-3 list-inside list-disc rounded-md px-3 py-2 text-sm">
                             {errors.map((e) => <li key={e}>{e}</li>)}
@@ -85,10 +96,10 @@ export default function Edit({ document: doc, typeName, canWrite }: { document: 
                     </div>
                 </div>
 
-                <section aria-label="Aperçu du document" className="bg-card text-muted-foreground min-w-0 rounded-[14px] border p-5 text-[12.5px]">
+                <section aria-label="Aperçu du document" className={cn('bg-card text-muted-foreground min-w-0 rounded-[0.875rem] border p-5 text-[0.7812rem]', pane === 'form' && 'max-xl:hidden')}>
                     <div className="border-b pb-3">
                         <p>{[d.client || '—', d.classification, `v${form.data.version}`].join(' · ')}</p>
-                        <p className="text-foreground my-0.5 text-[17px] font-semibold break-words">{form.data.title || 'Sans titre'}</p>
+                        <p className="text-foreground my-0.5 text-[1.0625rem] font-semibold break-words">{form.data.title || 'Sans titre'}</p>
                         <p>{def.subtitle}</p>
                     </div>
                     {def.preview(d).map(([heading, body]) => (
