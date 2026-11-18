@@ -12,12 +12,21 @@ use Illuminate\Console\Command;
  */
 class RefreshVeille extends Command
 {
-    protected $signature = 'sycenter:veille';
+    protected $signature = 'sycenter:veille {--check : Teste seulement la liste de départ de config/veille.php, sans rien enregistrer}';
 
     protected $description = 'Lit tous les flux de la veille et affiche le résultat par flux';
 
     public function handle(FeedReader $reader): int
     {
+        if ($this->option('check')) {
+            foreach (config('veille.sources') as $s) {
+                $found = $reader->discover($s['url']);
+                $this->line(str_pad($s['name'], 36).(is_string($found) ? "ÉCHEC : {$found}" : count($found['items']).' articles lus'));
+            }
+
+            return self::SUCCESS;
+        }
+
         $lock = cache()->lock('veille.refresh.all', 600);
         if (! $lock->get()) {
             $this->line('Une lecture est déjà en cours.');
