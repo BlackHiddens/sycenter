@@ -49,6 +49,12 @@ npx tsc --noEmit && vendor/bin/pint
 Inspiré du template ReUI « clinic » (shadcn) : palette neutre, cartes à coins de 14 px, la couleur est réservée aux icônes
 d'app et aux états. Ne pas copier le code de ce template, seulement son langage visuel.
 
+- **Marque Sycenter** (`components/app-logo-icon.tsx`, `public/images/sycenter-mark.svg`, `favicon.svg/.ico`,
+  `apple-touch-icon.png`) : un S carré en trois barres sur tuile anthracite, barre du haut verte. Elle reprend le E à
+  trois barres du logo Sykerio. Couleurs de marque fixes, indépendantes du thème. Plus aucune trace du logo Laravel.
+- **Connexion** (`layouts/auth/auth-simple-layout.tsx`) : fond de vagues géométriques en dérive lente
+  (`components/geo-waves.tsx`, canevas, couleurs du thème, fixe si « moins d'animations »), formulaire sur carte
+  translucide.
 - **Trois thèmes** dans `resources/css/app.css` : `:root` (clair), `.dark`, `.sykerio`. Choix mémorisé par appareil
   (`use-appearance.tsx`), bouton palette dans le rail.
 - **Sykerio** = rail anthracite `#272727` + contenu clair + vert de marque `#00A478` (couleurs du logo,

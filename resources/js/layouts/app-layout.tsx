@@ -1,3 +1,4 @@
+import AppLogoIcon from '@/components/app-logo-icon';
 import { themes } from '@/components/appearance-tabs';
 import { appIcons } from '@/components/sy';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -90,8 +91,8 @@ export default function AppLayout({ children, breadcrumbs, title, actions, panel
             <div className="flex min-h-svh pb-14 md:pb-0">
                 <nav aria-label="Applications"
                     className="bg-sidebar border-sidebar-border fixed inset-x-0 bottom-0 z-40 flex h-14 items-center justify-around gap-1 border-t px-2 pb-[env(safe-area-inset-bottom)] md:sticky md:top-0 md:h-svh md:w-[3.25rem] md:shrink-0 md:flex-col md:justify-start md:border-t-0 md:border-r md:px-0 md:py-2.5">
-                    <Link href={route('home')} aria-label="Accueil" className="bg-sidebar-primary text-sidebar-primary-foreground mb-2 hidden size-[2.125rem] place-items-center rounded-lg font-semibold md:grid">
-                        S
+                    <Link href={route('home')} aria-label="Accueil" className="mb-2 hidden md:block">
+                        <AppLogoIcon className="size-[2.125rem]" />
                     </Link>
                     <RailItem label="Mes applications">
                         <Link href={route('home')} aria-label="Mes applications" className={cn(railBtn, path === '/' && 'bg-sidebar-accent text-sidebar-accent-foreground')}>
