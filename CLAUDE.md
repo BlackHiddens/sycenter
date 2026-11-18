@@ -219,7 +219,8 @@ image, source, court titre et résumé de quelques lignes ; un clic ouvre l'arti
   (étiquette Veille, pictogramme Analyse, couleur du thème, étape « Lire l'article », lien dans la description) si
   l'utilisateur a l'app Tâches. Le rôle `viewer` lit seulement.
 - Sources de départ écartées : le blog sécurité de Microsoft (MSRC) refuse les lecteurs automatiques. CERT-FR a
-  déménagé sur `cert.cyber.gouv.fr` (non testé d'ici : hôte non autorisé dans l'environnement cloud).
+  déménagé sur `cert.cyber.gouv.fr` (vérifié depuis le serveur avec `sycenter:veille --check`, qui teste la liste
+  de départ sans rien enregistrer).
 
 ## App Accès
 
