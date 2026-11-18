@@ -99,11 +99,11 @@ export default function Edit({ document: doc, typeName, canWrite }: { document: 
                 <section aria-label="Aperçu du document" className={cn('bg-card text-muted-foreground min-w-0 rounded-[0.875rem] border p-5 text-[0.7812rem]', pane === 'form' && 'max-xl:hidden')}>
                     <div className="border-b pb-3">
                         <p>{[d.client || '—', d.classification, `v${form.data.version}`].join(' · ')}</p>
-                        <p className="text-foreground my-0.5 text-[1.0625rem] font-semibold break-words">{form.data.title || 'Sans titre'}</p>
+                        <p className="text-foreground my-0.5 text-[1.0625rem] font-semibold [overflow-wrap:anywhere]">{form.data.title || 'Sans titre'}</p>
                         <p>{def.subtitle}</p>
                     </div>
                     {def.preview(d).map(([heading, body]) => (
-                        <div key={heading} className="break-words whitespace-pre-line">
+                        <div key={heading} className="[overflow-wrap:anywhere] whitespace-pre-line">
                             <h3 className="text-foreground mt-3.5 mb-0.5 font-semibold">{heading}</h3>
                             {body}
                         </div>

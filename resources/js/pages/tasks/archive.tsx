@@ -60,7 +60,7 @@ export default function TasksArchive({ tasks, weeks, openTasks, practiceCount, c
                                     {t.status === 'done'
                                         ? <span className="bg-success text-card grid size-5 shrink-0 place-items-center rounded-full" aria-label="Terminée"><Check className="size-3" strokeWidth={3} /></span>
                                         : <CircleDashed className="text-muted-foreground size-5 shrink-0" aria-label="Archivée sans être terminée" />}
-                                    <span className="min-w-0 flex-1 text-sm font-medium break-words">{t.title}</span>
+                                    <span className="min-w-0 flex-1 text-sm font-medium [overflow-wrap:anywhere]">{t.title}</span>
                                     <span className="flex flex-wrap items-center gap-1.5">
                                         {t.tag && <Pill>{t.tag}</Pill>}
                                         {(t.steps?.length ?? 0) > 0 && <Pill><ListChecks className="mr-1 inline size-3 align-[-1px]" />{t.steps!.length}</Pill>}

@@ -44,7 +44,7 @@ function snippet(text: string | null, q: string) {
     if (at < 0) return null;
     const start = Math.max(0, at - 30);
     return (
-        <span className="text-muted-foreground line-clamp-2 text-xs break-words">
+        <span className="text-muted-foreground line-clamp-2 text-xs [overflow-wrap:anywhere]">
             {start > 0 && '…'}{text.slice(start, at)}<mark className="bg-warning-soft text-foreground rounded-sm px-0.5">{text.slice(at, at + q.length)}</mark>{text.slice(at + q.length, at + q.length + 50)}
         </span>
     );

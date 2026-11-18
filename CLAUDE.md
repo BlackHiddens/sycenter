@@ -65,6 +65,8 @@ d'app et aux états. Ne pas copier le code de ce template, seulement son langage
   dans un composant, sauf les couleurs d'icônes d'app (non textuelles).
 - Tout écran doit tenir à 400 px de large sans défilement horizontal. Piège récurrent : une grille CSS sans colonne
   explicite s'élargit avec son contenu ; mettre `grid-cols-[minmax(0,1fr)]` et `min-w-0`.
+  Pour les textes, utiliser `[overflow-wrap:anywhere]` et non `break-words` : un chemin ou une adresse sans espaces
+  (commande, chemin réseau) élargissait sinon la carte au-delà de sa colonne.
 - **Petits écrans** (Kevin travaille parfois sur un portable) :
   - *Densité* : la taille de base passe à 15 px sous 1440 px de large et à 14 px entre 768 et 1100 px
     (`app.css`). Tout est en `rem`, donc tout se compacte d'un coup ; **ne pas réintroduire de tailles en `px`** dans
@@ -142,7 +144,8 @@ Il retient **l'image** d'un sujet, pas son titre : tout doit rester graphique.
   scopes `archived` / `onBoard`). Depuis l'archive : remettre à faire (étapes décochées), supprimer, ou tout vider.
   Graphique des tâches terminées sur 12 semaines.
 - **Série** : jours consécutifs avec au moins une tâche terminée, plus un graphique sur 7 jours.
-- **Bonnes pratiques** (`tasks/practices.tsx`, `PracticeController`) : fiches par catégorie, recherche, copie. Révision
+- **Bonnes pratiques** (`tasks/practices.tsx`, `PracticeController`) : fiches par catégorie, recherche, copie. Les fiches
+  de catégorie technique (cmd, PowerShell, bash, SQL, git…) s'affichent en bloc de code (`isCode`). Révision
   espacée : la fiche due s'affiche sur le tableau, réponse masquée ; « Je savais » double l'intervalle (60 jours au plus),
   « À revoir » la ramène au lendemain (`review_at`, `interval_days`).
 - **Pastille** sur le rail et l'accueil : tâches du tableau à échéance atteinte + fiches à réviser.

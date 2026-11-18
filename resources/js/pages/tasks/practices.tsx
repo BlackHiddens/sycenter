@@ -10,6 +10,9 @@ import { type FormEvent, useState } from 'react';
 type Practice = { id: number; title: string; category: string; body: string };
 const palette = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 const blank = { title: '', category: '', body: '' };
+/** Fiche de commande (catégorie technique) : affichée en bloc de code, reconnaissable d'un coup d'œil. */
+const CODE = /\b(cmd|powershell|ps1?|bash|shell|sh|zsh|sql|git|linux|unix|docker|ssh|cli|commandes?|scripts?|terminal|regex|api)\b/i;
+const isCode = (p: Practice) => CODE.test(p.category);
 
 export default function Practices({ practices, openTasks, archivedCount, canWrite }: { practices: Practice[]; openTasks: number; archivedCount: number; canWrite: boolean }) {
     const [query, setQuery] = useState('');
@@ -74,16 +77,20 @@ export default function Practices({ practices, openTasks, archivedCount, canWrit
             ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] items-start gap-3.5">
                     {shown.map((p) => (
-                        <article key={p.id} className="bg-card grid gap-2.5 rounded-[0.875rem] border border-t-[3px] p-4" style={{ borderTopColor: color(p.category) }}>
+                        <article key={p.id} className="bg-card grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5 rounded-[0.875rem] border border-t-[3px] p-4" style={{ borderTopColor: color(p.category) }}>
                             <div className="flex items-start gap-2">
                                 <div className="min-w-0 flex-1">
                                     <Pill>{p.category}</Pill>
-                                    <h2 className="mt-1.5 text-sm font-semibold break-words">{p.title}</h2>
+                                    <h2 className="mt-1.5 text-sm font-semibold [overflow-wrap:anywhere]">{p.title}</h2>
                                 </div>
                                 <Button variant="ghost" size="sm" className="size-7 p-0" aria-label={`Copier le contenu de ${p.title}`} onClick={() => copy(p)}>{copied === p.id ? <Check /> : <Copy />}</Button>
                                 {canWrite && <Button variant="ghost" size="sm" className="size-7 p-0" aria-label={`Modifier ${p.title}`} onClick={() => open(p)}><Pencil /></Button>}
                             </div>
-                            <p className="text-muted-foreground text-[0.8125rem] break-words whitespace-pre-wrap">{p.body}</p>
+                            {isCode(p) ? (
+                                <pre className="bg-muted text-foreground overflow-x-auto rounded-lg px-3 py-2.5 font-mono text-[0.75rem] leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">{p.body}</pre>
+                            ) : (
+                                <p className="text-muted-foreground text-[0.8125rem] [overflow-wrap:anywhere] whitespace-pre-wrap">{p.body}</p>
+                            )}
                         </article>
                     ))}
                 </div>

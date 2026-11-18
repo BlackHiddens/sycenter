@@ -65,7 +65,7 @@ export function StepPath({ steps, onChange, templates, canWrite }: { steps: Step
                                 {s.done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
                             </button>
                             <div className="min-w-0 flex-1 pt-0.5">
-                                <p className={cn('text-sm break-words', s.done ? 'text-muted-foreground line-through' : i === next && 'font-semibold')}>{s.text}</p>
+                                <p className={cn('text-sm [overflow-wrap:anywhere]', s.done ? 'text-muted-foreground line-through' : i === next && 'font-semibold')}>{s.text}</p>
                                 {i === next && <p className="text-muted-foreground flex items-center gap-1 text-xs"><Footprints className="size-3" />Prochaine étape</p>}
                             </div>
                             {canWrite && (

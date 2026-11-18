@@ -173,7 +173,7 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                 aria-label={`Marquer comme faite : ${steps[i].text}`}>
                 <CornerDownRight className="text-muted-foreground mt-0.5 size-3.5 shrink-0 group-hover/next:hidden" />
                 <Check className="text-success mt-0.5 hidden size-3.5 shrink-0 group-hover/next:block" strokeWidth={3} />
-                <span className="min-w-0 break-words"><span className="text-muted-foreground tabular-nums">{`${i + 1}/${steps.length} `}</span>{steps[i].text}</span>
+                <span className="min-w-0 [overflow-wrap:anywhere]"><span className="text-muted-foreground tabular-nums">{`${i + 1}/${steps.length} `}</span>{steps[i].text}</span>
             </button>
         );
     };
@@ -254,10 +254,10 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                     <h2 className={cardTitle}><BookOpenCheck className="size-3.5" />À réviser{reviewDue > 0 && <Pill>{reviewDue}</Pill>}</h2>
                     {review ? (
                         <>
-                            <div><Pill>{review.category}</Pill><p className="mt-1.5 text-sm font-medium break-words">{review.title}</p></div>
+                            <div><Pill>{review.category}</Pill><p className="mt-1.5 text-sm font-medium [overflow-wrap:anywhere]">{review.title}</p></div>
                             {revealed ? (
                                 <>
-                                    <p className="text-muted-foreground max-h-28 overflow-y-auto text-[0.8125rem] break-words whitespace-pre-wrap">{review.body}</p>
+                                    <p className="text-muted-foreground max-h-28 overflow-y-auto text-[0.8125rem] [overflow-wrap:anywhere] whitespace-pre-wrap">{review.body}</p>
                                     {canWrite && (
                                         <div className="flex flex-wrap gap-2">
                                             <Button size="sm" onClick={() => answer(true)}><Check /> Je savais</Button>
@@ -314,7 +314,7 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                                                 ? <WaitingRing who={t.waiting_for} since={t.waiting_since} followUp={t.follow_up_on} today={now} />
                                                 : <TaskTile icon={t.icon} hue={t.hue} tag={t.tag} title={t.title} className={cn(t.status === 'done' && 'opacity-50')} />}
                                             <button className="min-w-0 flex-1 text-left hover:underline" onClick={() => edit(t)} aria-label={`Ouvrir la tâche ${t.title}`}>
-                                                <span className={cn('block text-sm font-medium break-words', t.status === 'done' && 'text-muted-foreground line-through')}>{t.title}</span>
+                                                <span className={cn('block text-sm font-medium [overflow-wrap:anywhere]', t.status === 'done' && 'text-muted-foreground line-through')}>{t.title}</span>
                                                 {t.status === 'waiting' && (
                                                     <span className="text-muted-foreground block text-xs">{`${t.waiting_for || 'Quelqu’un'} · depuis ${daysSince(t.waiting_since, now)} j${t.follow_ups ? ` · ${t.follow_ups} relance${t.follow_ups > 1 ? 's' : ''}` : ''}`}</span>
                                                 )}

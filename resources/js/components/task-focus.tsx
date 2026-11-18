@@ -101,7 +101,7 @@ export default function TaskFocus<T extends FocusTask>({ open, onOpenChange, tas
                                 {reason && (
                                     <span className="w-fit"><Pill tone={reason.tone}><reason.icon className="mr-1 inline size-3 align-[-0.125rem]" />{reason.label}</Pill></span>
                                 )}
-                                <p className="text-xl leading-snug font-semibold break-words">{current.title}</p>
+                                <p className="text-xl leading-snug font-semibold [overflow-wrap:anywhere]">{current.title}</p>
                                 {current.tag && <span className="w-fit"><Pill>{current.tag}</Pill></span>}
                             </div>
                         </div>
@@ -110,7 +110,7 @@ export default function TaskFocus<T extends FocusTask>({ open, onOpenChange, tas
                             <div className="bg-muted/60 grid gap-2.5 rounded-xl p-4">
                                 <StepBar steps={steps} />
                                 <p className="text-muted-foreground text-xs tracking-wider uppercase">{`Prochaine étape · ${ni + 1}/${steps.length}`}</p>
-                                <p className="text-base font-medium break-words">{steps[ni].text}</p>
+                                <p className="text-base font-medium [overflow-wrap:anywhere]">{steps[ni].text}</p>
                             </div>
                         )}
                         {current.status === 'waiting' && (
@@ -118,7 +118,7 @@ export default function TaskFocus<T extends FocusTask>({ open, onOpenChange, tas
                                 {`En attente de ${current.waiting_for || 'quelqu’un'} depuis ${daysSince(current.waiting_since, today)} jour${daysSince(current.waiting_since, today) > 1 ? 's' : ''}.`}
                             </p>
                         )}
-                        {current.notes && <p className="text-muted-foreground line-clamp-3 text-sm break-words whitespace-pre-line">{current.notes}</p>}
+                        {current.notes && <p className="text-muted-foreground line-clamp-3 text-sm [overflow-wrap:anywhere] whitespace-pre-line">{current.notes}</p>}
 
                         {asking ? (
                             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); onWait(current, who.trim()); next('wait'); }}>
