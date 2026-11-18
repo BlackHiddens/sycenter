@@ -49,7 +49,7 @@ class PlatformTest extends TestCase
         $this->actingAs($this->member())->post('/users', [])->assertForbidden();
 
         $this->actingAs($owner = $this->owner())->post('/users', [
-            'name' => 'Invité', 'email' => 'invite@example.com', 'password' => 'motdepasse-solide', 'role' => 'user', 'apps' => ['docs'],
+            'name' => 'Invité', 'email' => 'invite@example.com', 'password' => 'motdepasse-solide-42', 'role' => 'user', 'apps' => ['docs'],
         ])->assertSessionHasNoErrors();
         $guest = User::where('email', 'invite@example.com')->firstOrFail();
         $this->assertTrue($guest->canUse('docs'));
@@ -336,6 +336,31 @@ class PlatformTest extends TestCase
         $this->assertStringContainsString('<meta name="robots" content="noindex', $login->getContent());
         $this->get('/')->assertRedirect('/login')->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
         $this->get('/register')->assertNotFound()->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+    }
+
+    /** en-têtes de sécurité, jeton sur chaque script en ligne, mots de passe faibles refusés */
+    public function test_security_headers_and_password_rules(): void
+    {
+        config(['app.debug' => false]); // la politique de contenu ne s'applique qu'hors mode débogage, comme en production
+        $page = $this->get('/login')->assertOk()
+            ->assertHeader('X-Frame-Options', 'DENY')
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Referrer-Policy', 'same-origin');
+        $this->assertFalse($page->headers->has('X-Powered-By'));
+        preg_match("/'nonce-([^']+)'/", $page->headers->get('Content-Security-Policy'), $m);
+        $this->assertNotEmpty($m[1] ?? null);
+        // Chaque script de la page porte le jeton de la politique de contenu.
+        preg_match_all('/<script\b[^>]*>/', $page->getContent(), $scripts);
+        $this->assertNotEmpty($scripts[0]);
+        foreach ($scripts[0] as $tag) {
+            $this->assertStringContainsString("nonce=\"{$m[1]}\"", $tag);
+        }
+
+        $owner = $this->owner();
+        $weak = ['name' => 'X', 'email' => 'x@example.com', 'role' => 'user', 'apps' => []];
+        $this->actingAs($owner)->post('/users', $weak + ['password' => 'courtcourt'])->assertSessionHasErrors('password');
+        $this->actingAs($owner)->post('/users', $weak + ['password' => 'seulementdeslettres'])->assertSessionHasErrors('password');
+        $this->actingAs($owner)->post('/users', $weak + ['password' => 'des-lettres-et-42'])->assertSessionHasNoErrors();
     }
 
     /** notes privées, fermées sans le droit, lecture seule pour le rôle dédié */

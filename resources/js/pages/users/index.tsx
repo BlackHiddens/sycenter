@@ -70,7 +70,7 @@ export default function Users({ users, grantable }: { users: User[]; grantable: 
                     <form onSubmit={submit} className="grid gap-4">
                         <DialogHeader>
                             <DialogTitle>{isNew ? 'Ajouter un utilisateur' : `Modifier ${form.data.name}`}</DialogTitle>
-                            <DialogDescription>{isNew ? 'Tu lui transmets toi-même son mot de passe ; il pourra le changer ensuite.' : 'Laisse le mot de passe vide pour ne pas le changer.'}</DialogDescription>
+                            <DialogDescription>{isNew ? 'Tu lui transmets toi-même son mot de passe (12 caractères au moins, lettres et chiffres) ; il pourra le changer ensuite.' : 'Laisse le mot de passe vide pour ne pas le changer.'}</DialogDescription>
                         </DialogHeader>
                         {isNew && (
                             <>
@@ -78,7 +78,7 @@ export default function Users({ users, grantable }: { users: User[]; grantable: 
                                 <label className="grid gap-1.5 text-[0.8125rem] font-medium">E-mail<input className={fieldClass} type="email" required value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />{err('email')}</label>
                             </>
                         )}
-                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Mot de passe<input className={fieldClass} type="password" autoComplete="new-password" required={isNew} minLength={8} value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} />{err('password')}</label>
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Mot de passe<input className={fieldClass} type="password" autoComplete="new-password" required={isNew} minLength={12} value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} />{err('password')}</label>
                         <label className="grid gap-1.5 text-[0.8125rem] font-medium">
                             Rôle
                             <select className={fieldClass} value={form.data.role} onChange={(e) => form.setData('role', e.target.value)}>

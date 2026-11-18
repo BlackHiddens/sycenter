@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 41 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 42 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -179,6 +179,22 @@ déploiement automatique : pousser sur GitHub ne met rien en ligne.
   `codeload.github.com`, `api.github.com`). Sans les deux derniers, Composer retombe sur des clones git très lents.
 - Claude n'a pas le mot de passe du compte de Kevin : impossible de tester connecté en production. Vérifier en local
   dans un navigateur (Playwright), puis en production ce qui est accessible sans connexion, et le dire à Kevin.
+
+## Sécurité
+
+- **En-têtes** (`app/Http/Middleware/SecurityHeaders.php`, global) : HSTS en production, `X-Frame-Options: DENY`,
+  `nosniff`, `Referrer-Policy: same-origin`, `Permissions-Policy` fermée, `X-Powered-By` retiré.
+- **Politique de contenu (CSP)** : scripts du site seulement, et **chaque script en ligne porte le jeton**
+  `Vite::cspNonce()` (`@routes(nonce: …)`, `<script nonce="…">` dans `app.blade.php`). Tout nouveau script en ligne
+  doit le porter, sinon il est bloqué. Styles en ligne permis (React, Excalidraw, Inertia). Pas de processus
+  d'arrière-plan. Désactivée en mode débogage et avec le serveur Vite (pages d'erreur et rechargement à chaud).
+  À l'export SVG d'une note, Excalidraw essaie ses polices de secours sur esm.sh : refusées, messages de console
+  inoffensifs, le fichier est correct.
+- **Mots de passe** (`AppServiceProvider`) : 12 caractères, lettres et chiffres ; en production, refus des mots de
+  passe présents dans des fuites (Have I Been Pwned, k-anonymat).
+- **Connexion** : 5 essais par minute par e-mail et adresse IP (kit), cookies `secure`, `httponly`, `samesite=lax`.
+  Le lien « mot de passe oublié » est masqué tant que l'envoi d'e-mails n'est pas configuré.
+- HTTPS et redirection http → https : gérés par Hostinger (certificat permanent).
 
 ## Secrets
 

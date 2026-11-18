@@ -27,6 +27,13 @@ return [
         'string' => 'Le champ « :attribute » ne doit pas dépasser :max caractères.',
         'array' => 'Le champ « :attribute » ne doit pas contenir plus de :max éléments.',
     ],
+    'password' => [
+        'letters' => 'Le mot de passe doit contenir au moins une lettre.',
+        'mixed' => 'Le mot de passe doit contenir au moins une majuscule et une minuscule.',
+        'numbers' => 'Le mot de passe doit contenir au moins un chiffre.',
+        'symbols' => 'Le mot de passe doit contenir au moins un symbole.',
+        'uncompromised' => 'Ce mot de passe apparaît dans une fuite de données connue. Choisis-en un autre.',
+    ],
     'custom' => [
         'data.vlans.*.subnet' => ['regex' => 'Le sous-réseau doit être en notation CIDR, par exemple 10.10.20.0/24.'],
         'version' => ['regex' => 'La version doit être de la forme 1.0 ou 1.2.3.'],

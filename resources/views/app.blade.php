@@ -8,8 +8,8 @@
         <title inertia>{{ config('app.name', 'Sycenter') }}</title>
 
         {{-- Polices du dessin des notes (Excalidraw), servies par le site plutôt que par un CDN. --}}
-        <script>window.EXCALIDRAW_ASSET_PATH = '/excalidraw/';</script>
-        @routes
+        <script nonce="{{ Vite::cspNonce() }}">window.EXCALIDRAW_ASSET_PATH = '/excalidraw/';</script>
+        @routes(nonce: Vite::cspNonce())
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
