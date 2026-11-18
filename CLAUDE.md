@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 42 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 43 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -92,6 +92,12 @@ Un modèle de document, c'est quatre endroits à garder alignés :
    fiche, en-tête et pied de page). **Les PDF sont neutres** : noir, gris et filets fins, sans logo ni vert Sykerio
    (demande de Kevin : ce sont des documents pour ses clients). Le gabarit et utilise `_h`, `_kv`, `_rows`. Dompdf : pas de flexbox ni de grille, mise en page
    par tableaux et `inline-block` ; police DejaVu Sans.
+
+Page 2 de chaque PDF : sommaire puis **« En bref »** (chiffres clés `$brief` et points d'attention `$attention`,
+calculés dans chaque vue de modèle). Pas de fiche qui répète la page de garde : Kevin veut des documents pertinents
+sans être indigestes. Exemple réel : le dossier d'architecture de Sycenter lui-même
+(`database/examples/sycenter-architecture.json`, déposé dans le compte du propriétaire par
+`php artisan sycenter:example-architecture`, sans doublon ; un test vérifie qu'il respecte les règles du formulaire).
 
 Modèles actifs : `network` (architecture réseau, avec schéma de topologie) et `software` (architecture logicielle, avec
 schéma en couches). `pra` est déclaré mais inactif. Le contenu des formulaires est une proposition de Claude : Kevin n'a

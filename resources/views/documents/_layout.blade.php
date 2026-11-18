@@ -41,6 +41,12 @@
     th { font-size: 7pt; letter-spacing: 1pt; text-transform: uppercase; color: #52525B; text-align: left; font-weight: bold; padding: 2.2mm 2.5mm; border-bottom: 1pt solid #18181B; }
     td { padding: 2.4mm 2.5mm; border-bottom: 0.5pt solid #E4E4E7; font-size: 9pt; vertical-align: top; }
     tr.alt td { background: #FAFAFA; }
+    tr { page-break-inside: avoid; }
+    .brief { margin: 1mm 0 2mm; }
+    .brief td { border: 0; border-top: 1.5pt solid #18181B; padding: 3mm 3mm 0 0; vertical-align: top; }
+    .brief .bv { display: block; font-size: 12.5pt; font-weight: bold; color: #18181B; line-height: 1.25; }
+    .brief .bl { display: block; margin-top: 1.2mm; font-size: 7pt; letter-spacing: 1pt; text-transform: uppercase; color: #71717A; }
+    .att { margin: 0 0 1.8mm; padding-left: 4mm; border-left: 2pt solid #991B1B; color: #3F3F46; }
     .kv td.k { width: 36%; color: #71717A; }
     .kv td.v { color: #18181B; }
     .chip { display: inline-block; border: 0.5pt solid #A1A1AA; border-radius: 8pt; padding: 0.5mm 2.5mm; font-size: 8pt; color: #52525B; margin-right: 1.5mm; }
@@ -90,14 +96,19 @@
             <tr><td class="n">{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</td><td>{{ $title }}</td></tr>
         @endforeach
     </table>
-    <h3>Fiche du document</h3>
-    <table class="kv">
-        <tr><td class="k">Titre</td><td class="v">{{ $doc->title }}</td></tr>
-        <tr><td class="k">Nature</td><td class="v">{{ $kind }}</td></tr>
-        <tr><td class="k">Version</td><td class="v">{{ $doc->version }} du {{ $doc->updated_at->format('d/m/Y') }}</td></tr>
-        <tr><td class="k">Rédacteur</td><td class="v">{{ $doc->user->name }}</td></tr>
-        <tr><td class="k">Diffusion</td><td class="v">{{ $d['classification'] }}</td></tr>
-    </table>
+    {{-- En bref : chiffres clés et points d'attention, fournis par chaque modèle ($brief, $attention). --}}
+    <h2>En bref</h2>
+    <table class="brief"><tr>
+        @foreach ($brief as $label => $value)
+            <td><span class="bv">{{ $value }}</span><span class="bl">{{ $label }}</span></td>
+        @endforeach
+    </tr></table>
+    @if (count($attention))
+        <h3>Points d'attention</h3>
+        @foreach ($attention as $line)
+            <p class="att">{{ $line }}</p>
+        @endforeach
+    @endif
     <div class="break"></div>
 
     @yield('content')

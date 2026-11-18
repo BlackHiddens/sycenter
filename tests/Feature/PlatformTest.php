@@ -363,6 +363,19 @@ class PlatformTest extends TestCase
         $this->actingAs($owner)->post('/users', $weak + ['password' => 'des-lettres-et-42'])->assertSessionHasNoErrors();
     }
 
+    /** le dossier d'architecture de Sycenter respecte les règles du formulaire et se dépose sans doublon */
+    public function test_sycenter_architecture_example(): void
+    {
+        $owner = $this->owner();
+        $this->artisan('sycenter:example-architecture')->assertSuccessful();
+        $this->artisan('sycenter:example-architecture')->assertSuccessful();
+        $doc = $owner->documents()->sole();
+        $example = json_decode(file_get_contents(database_path('examples/sycenter-architecture.json')), true);
+        $this->actingAs($owner)->put("/documents/{$doc->id}", $example)->assertSessionHasNoErrors();
+        $pdf = $this->actingAs($owner)->get("/documents/{$doc->id}/pdf")->assertOk();
+        $this->assertStringStartsWith('%PDF', $pdf->getContent());
+    }
+
     /** notes privées, fermées sans le droit, lecture seule pour le rôle dédié */
     public function test_notes_are_private(): void
     {

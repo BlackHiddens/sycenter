@@ -1,0 +1,68 @@
+{
+    "title": "Plateforme Sycenter",
+    "version": "1.0",
+    "data": {
+        "client": "Sykerio",
+        "classification": "Interne",
+        "goal": "Réunir dans un seul espace les outils de travail de Kevin : documents d'architecture, tâches et notes dessinées. Accessible depuis un ordinateur ou un téléphone, avec des accès ouverts au cas par cas.",
+        "scope": "Inclus : lanceur d'apps, Documents (PDF), Tâches, Notes, gestion des accès.\nExclu : facturation, messagerie, envoi d'e-mails (pas encore configuré), application mobile native.",
+        "actors": [
+            { "name": "Propriétaire", "need": "Tout utiliser, ouvrir et retirer les accès" },
+            { "name": "Utilisateur invité", "need": "Utiliser les apps qui lui sont ouvertes" },
+            { "name": "Lecteur", "need": "Consulter et télécharger, sans rien modifier" }
+        ],
+        "style": "Monolithe modulaire",
+        "users": "Moins de 10 comptes, usage personnel",
+        "performance": "Pages en moins de 2 s ; dessins enregistrés en arrière-plan",
+        "availability": "99,5 %",
+        "constraints": "Hébergement mutualisé : ni SSH ni Node.js sur le serveur, donc compilation en amont et envoi fichier par fichier.\nUn seul développeur, budget d'hébergement existant.",
+        "components": [
+            { "name": "Interface web", "layer": "Interface", "tech": "React 19, Inertia 2, Tailwind 4", "role": "Écrans, thèmes, affichage adapté à la taille d'écran" },
+            { "name": "Éditeur de dessin", "layer": "Interface", "tech": "Excalidraw 0.18", "role": "Toile des notes, export PNG et SVG" },
+            { "name": "Application", "layer": "Service", "tech": "Laravel 12, PHP 8.3", "role": "Règles métier, droits, validation, sécurité" },
+            { "name": "Génération PDF", "layer": "Service", "tech": "Dompdf", "role": "Mise en page des documents" },
+            { "name": "Base de données", "layer": "Données", "tech": "MySQL", "role": "Comptes, documents, tâches, notes, sessions" },
+            { "name": "CDN et certificat", "layer": "Externe", "tech": "Hostinger", "role": "Cache, HTTPS" },
+            { "name": "Contrôle des mots de passe", "layer": "Externe", "tech": "Have I Been Pwned", "role": "Refus des mots de passe ayant fuité" },
+            { "name": "Dépôt de code", "layer": "Externe", "tech": "GitHub", "role": "Historique et copie du code" }
+        ],
+        "interfaces": [
+            { "source": "Navigateur", "destination": "Interface web", "protocol": "HTTPS (via CDN)", "purpose": "Pages et ressources" },
+            { "source": "Interface web", "destination": "Application", "protocol": "HTTPS / Inertia", "purpose": "Navigation et formulaires" },
+            { "source": "Éditeur de dessin", "destination": "Application", "protocol": "HTTPS / JSON", "purpose": "Enregistrement automatique des notes" },
+            { "source": "Application", "destination": "Base de données", "protocol": "MySQL local", "purpose": "Lecture et écriture" },
+            { "source": "Application", "destination": "Contrôle des mots de passe", "protocol": "HTTPS", "purpose": "5 caractères d'empreinte, jamais le mot de passe" }
+        ],
+        "entities": [
+            { "name": "Comptes", "description": "Nom, e-mail, rôle, apps ouvertes, mot de passe haché", "sensitivity": "Personnelle" },
+            { "name": "Sessions", "description": "Connexions en cours", "sensitivity": "Sensible" },
+            { "name": "Documents", "description": "Contenu des formulaires ; PDF produit à la demande", "sensitivity": "Interne" },
+            { "name": "Tâches et bonnes pratiques", "description": "Titres, étapes, échéances, fiches", "sensitivity": "Interne" },
+            { "name": "Notes", "description": "Dessins, texte, vignettes, images collées", "sensitivity": "Interne" }
+        ],
+        "retention": "Tant que le compte existe ; tâches terminées archivées après 7 jours",
+        "hosting": "Mutualisé",
+        "environments": ["Développement", "Production"],
+        "auth": "Identifiant et mot de passe",
+        "encrypt_transit": true,
+        "encrypt_rest": false,
+        "cicd": "Tests automatiques et contrôle de contraste, puis envoi manuel des fichiers modifiés",
+        "backup": "Sauvegardes automatiques de l'hébergeur ; code versionné sur GitHub",
+        "recovery": "Redéploiement depuis GitHub et restauration de la base ; retour visé dans la journée",
+        "monitoring": "Journaux Laravel sur le serveur ; pas d'alerte automatique",
+        "decisions": [
+            { "decision": "Monolithe Laravel + Inertia plutôt qu'une API et une application séparées", "reason": "Un seul dépôt et une seule validation : adapté à un développeur seul" },
+            { "decision": "Garder l'hébergement mutualisé existant", "reason": "Déjà payé ; la compilation en amont compense l'absence de Node.js" },
+            { "decision": "Excalidraw pour les notes", "reason": "Dessin libre éprouvé, licence MIT, export intégré" },
+            { "decision": "Contenu des documents stocké en JSON", "reason": "Ajouter un modèle de document sans modifier la base" },
+            { "decision": "Pas d'inscription publique, droits simples par app", "reason": "Plateforme personnelle : moins de surface d'attaque, moins de code" }
+        ],
+        "risks": [
+            { "risk": "Connexion protégée par un seul mot de passe", "impact": "Fort", "mitigation": "Double authentification à mettre en place" },
+            { "risk": "Secret de la base de données à renouveler", "impact": "Fort", "mitigation": "Changement prévu, puis mise à jour de la configuration" },
+            { "risk": "Dépendance à un seul hébergeur", "impact": "Moyen", "mitigation": "Code sur GitHub ; export régulier de la base à prévoir" },
+            { "risk": "Déploiement manuel", "impact": "Moyen", "mitigation": "Procédure écrite, tests avant chaque envoi" },
+            { "risk": "Aucune alerte en cas de panne", "impact": "Faible", "mitigation": "Usage personnel : panne vue à l'usage ; sonde de disponibilité à envisager" }
+        ]
+    }
+}

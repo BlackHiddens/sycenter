@@ -2,6 +2,15 @@
     $kind = 'Architecture logicielle';
     $toc = ['Contexte et objectifs', 'Architecture retenue', 'Composants', 'Flux et interfaces', 'Données', 'Déploiement et sécurité', 'Décisions et risques'];
     $layers = collect($d['components'])->groupBy('layer');
+    $brief = [
+        'Architecture' => $d['style'],
+        'Hébergement' => $d['hosting'],
+        'Disponibilité visée' => $d['availability'],
+        'Composants' => count($d['components']),
+        'Décisions' => count($d['decisions']),
+    ];
+    $attention = collect($d['risks'])->where('impact', 'Fort')->map(fn ($r) => $r['risk'].(($r['mitigation'] ?? '') ? ' — '.$r['mitigation'] : ''))
+        ->when(! $d['encrypt_transit'], fn ($c) => $c->push('Échanges non chiffrés (pas de TLS)'))->values()->all();
 @endphp
 @extends('documents._layout')
 
@@ -32,7 +41,7 @@
             @endforeach
         </table>
     @endif
-    @include('documents._rows', ['rows' => $d['components'], 'cols' => ['name' => 'Composant', 'layer' => 'Couche', 'tech' => 'Technologie', 'role' => 'Responsabilité'], 'empty' => 'Aucun composant défini.'])
+    @include('documents._rows', ['rows' => $d['components'], 'cols' => ['name' => 'Composant', 'tech' => 'Technologie', 'role' => 'Responsabilité'], 'empty' => 'Aucun composant défini.'])
 
     @include('documents._h', ['i' => 3])
     @include('documents._rows', ['rows' => $d['interfaces'], 'cols' => ['source' => 'Source', 'destination' => 'Destination', 'protocol' => 'Protocole', 'purpose' => 'Objet'], 'empty' => 'Aucun flux défini.'])

@@ -2,6 +2,16 @@
     $kind = 'Architecture réseau';
     $toc = ['Contexte et périmètre', 'Topologie', 'Équipements', "Plan d'adressage", 'Sécurité', 'Exploitation et risques'];
     $multi = (int) $d['sites'] > 1;
+    $brief = [
+        'Sites' => $d['sites'],
+        'Topologie' => $d['topology'],
+        'VLAN' => count($d['vlans']),
+        'Équipements' => collect($d['equipment'])->sum(fn ($e) => (int) ($e['qty'] ?? 1)),
+        'Flux décrits' => count($d['flows']),
+    ];
+    $attention = collect($d['risks'])->map(fn ($r) => $r['risk'].(($r['mitigation'] ?? '') ? ' — '.$r['mitigation'] : ''))
+        ->when($d['redundancy'] === 'Aucune', fn ($c) => $c->push('Aucune redondance : une panne de lien ou d\'équipement coupe le réseau'))
+        ->when($d['remote_access'] === 'Aucun' && $multi, fn ($c) => $c->push('Plusieurs sites sans accès distant défini'))->values()->all();
 @endphp
 @extends('documents._layout')
 
