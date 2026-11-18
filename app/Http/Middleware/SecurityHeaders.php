@@ -40,7 +40,8 @@ class SecurityHeaders
                 "default-src 'self'",
                 "script-src 'self' 'nonce-{$nonce}'",
                 "style-src 'self' 'unsafe-inline'",
-                "img-src 'self' data: blob:",
+                // Images d'articles de l'app Veille : servies par les sites d'actualité eux-mêmes, en https seulement.
+                "img-src 'self' data: blob: https:",
                 "font-src 'self' data:",
                 "connect-src 'self'",
                 // Aucun processus d'arrière-plan n'est nécessaire (Excalidraw s'en passe et travaille dans la page).

@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
+use App\Models\FeedItem;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class PlatformTest extends TestCase
@@ -426,5 +428,67 @@ class PlatformTest extends TestCase
 
         $this->actingAs($user)->delete("/notes/{$note->id}")->assertRedirect('/notes');
         $this->assertNull($note->fresh());
+    }
+
+    /** veille : flux RSS et Atom lus, liens dangereux écartés, résumés nettoyés, sources en panne signalées */
+    public function test_veille_reads_rss_and_atom_feeds(): void
+    {
+        config(['veille.sources' => [
+            'rss' => ['name' => 'RSS', 'theme' => 'cyber', 'lang' => 'fr', 'url' => 'https://rss.test/feed'],
+            'atom' => ['name' => 'Atom', 'theme' => 'dev', 'lang' => 'en', 'url' => 'https://atom.test/feed'],
+            'down' => ['name' => 'Panne', 'theme' => 'windows', 'lang' => 'fr', 'url' => 'https://down.test/feed'],
+        ]]);
+        $date = now()->subHour()->toRfc2822String();
+        Http::fake([
+            'rss.test/*' => Http::response('<?xml version="1.0"?><rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title>R</title>'
+                ."<item><title>Faille critique &amp; correctif</title><link>https://rss.test/a</link><guid>a1</guid><pubDate>{$date}</pubDate>"
+                .'<description><![CDATA[<p>Faille critique &amp; correctif : une mise à jour urgente est disponible pour tous les serveurs.</p> L’article Faille est apparu en premier sur R.]]></description>'
+                .'<media:thumbnail url="https://rss.test/a.jpg"/></item>'
+                ."<item><title>Piège</title><link>javascript:alert(1)</link><pubDate>{$date}</pubDate></item>"
+                .'<item><title>Trop vieux</title><link>https://rss.test/old</link><pubDate>Mon, 01 Jan 2024 10:00:00 +0000</pubDate></item>'
+                .'</channel></rss>'),
+            'atom.test/*' => Http::response('<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>A</title>'
+                .'<entry><title>Release notes</title><id>tag:a,1</id><link rel="alternate" href="https://atom.test/r"/><updated>'.now()->subDay()->toAtomString().'</updated>'
+                .'<summary>A new version ships with faster builds and a simpler configuration.</summary></entry></feed>'),
+            'down.test/*' => Http::response('', 500),
+        ]);
+        $user = $this->member(['veille']);
+
+        $this->actingAs($user)->postJson('/veille/refresh', ['force' => true])->assertOk()->assertJson(['refreshed' => true, 'failed' => ['down']]);
+
+        $this->assertSame(2, FeedItem::count());
+        $rss = FeedItem::where('source', 'rss')->sole();
+        $this->assertSame('Faille critique & correctif', $rss->title);
+        $this->assertSame('une mise à jour urgente est disponible pour tous les serveurs.', $rss->summary);
+        $this->assertSame('https://rss.test/a.jpg', $rss->image);
+        $this->assertSame('cyber', $rss->theme);
+        $this->assertSame('https://atom.test/r', FeedItem::where('source', 'atom')->value('url'));
+
+        // Le cache est frais : pas de nouvelle récupération sans la demander.
+        $this->actingAs($user)->postJson('/veille/refresh')->assertJson(['refreshed' => false]);
+        $this->actingAs($user)->get('/veille')->assertInertia(fn ($page) => $page->component('veille/index', false)->has('items', 2)->where('stale', false));
+    }
+
+    /** veille : accès par app, articles mis de côté par personne, un article devient une tâche */
+    public function test_veille_access_saves_and_tasks(): void
+    {
+        $item = FeedItem::create(['source' => 'zataz', 'theme' => 'cyber', 'guid' => sha1('x'), 'title' => 'Fuite', 'summary' => 'Résumé', 'url' => 'https://exemple.test/a', 'published_at' => now()]);
+        $this->actingAs($this->member(['docs']))->get('/veille')->assertForbidden();
+
+        $user = $this->member(['veille', 'tasks']);
+        $this->actingAs($user)->get('/veille')->assertInertia(fn ($page) => $page->where('seenAt', null)->where('canTask', true));
+        $this->assertNotNull($user->fresh()->veille_seen_at);
+
+        $this->actingAs($user)->postJson("/veille/{$item->id}/save")->assertJson(['saved' => true]);
+        $this->actingAs($user)->get('/veille')->assertInertia(fn ($page) => $page->where('saved', [$item->id]));
+        $this->actingAs($user)->postJson("/veille/{$item->id}/save")->assertJson(['saved' => false]);
+
+        $this->actingAs($user)->postJson("/veille/{$item->id}/task")->assertOk();
+        $task = $user->tasks()->sole();
+        $this->assertSame(['Fuite', 'Veille', 'rose'], [$task->title, $task->tag, $task->hue]);
+        $this->assertStringContainsString('https://exemple.test/a', $task->notes);
+
+        $this->actingAs($this->member(['veille']))->postJson("/veille/{$item->id}/task")->assertForbidden();
+        $this->actingAs($this->member(['veille'], 'viewer'))->postJson("/veille/{$item->id}/save")->assertForbidden();
     }
 }

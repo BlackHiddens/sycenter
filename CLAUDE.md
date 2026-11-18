@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 44 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 46 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -183,6 +183,35 @@ licence MIT, version figée), et on retrouve une note par son dessin, sa couleur
   depuis `public/excalidraw/fonts` (`npm run excalidraw:fonts`, chemin donné par `window.EXCALIDRAW_ASSET_PATH` dans
   `app.blade.php`) ; la police chinoise (13 Mo) est volontairement absente.
 
+## App Veille
+
+Actualités par thème pour le métier de Kevin : **Développement** (son thème principal, affiché en premier),
+**Cybersécurité**, **Windows**. Cartes avec image, source, court titre et résumé de quelques lignes ; un clic ouvre
+l'article dans un nouvel onglet.
+
+- **Sources** : `config/veille.php` (thèmes avec couleur et pictogramme, puis une ligne par flux RSS/Atom public).
+  Ajouter une source = une ligne. Sources en anglais marquées `EN`. Le blog sécurité de Microsoft (MSRC) refuse les
+  lecteurs automatiques, d'où son absence. CERT-FR a déménagé sur `cert.cyber.gouv.fr`.
+- **Récupération** (`app/Services/FeedReader.php`) : pas de tâche planifiée. À l'ouverture de la page, si la
+  dernière récupération date de plus de 30 min, la page appelle `veille.refresh` en arrière-plan (`fetch`), puis
+  recharge ses articles. Toutes les sources sont lues en parallèle (délai de 10 s), une seule récupération par minute
+  (verrou de cache). Articles communs à tous (`feed_items`), gardés 30 jours, 15 par source au plus.
+  `php artisan sycenter:veille` récupère tout de suite et affiche le résultat par source (utile en production via
+  une tâche planifiée temporaire).
+- **Lecture des flux** : RSS 2.0, RSS 1.0 et Atom. Seuls les liens http(s) passent (jamais de `javascript:`), images en
+  https seulement. Résumé nettoyé : balises, liens isolés, titre répété en tête, mentions « L'article … est apparu en
+  premier sur », coupé à 240 caractères. Dates ramenées au fuseau de l'application.
+- **Images** : celles des sites d'actualité, chargées directement par le navigateur (`img-src https:` dans la CSP,
+  `referrerPolicy="no-referrer"`). Une petite image (logo) est posée entière sur fond neutre plutôt qu'agrandie ;
+  sans image, une affiche rayée aux couleurs du thème avec le nom de la source.
+- **Vue « Tout »** : 6 cartes par thème, en alternant les sources (une source bavarde comme Developpez ne prend pas
+  tout le thème). Vue d'un thème : articles groupés par jour. Filtre par source dans le panneau, recherche (`/`).
+- **Nouveau** : article arrivé depuis la visite précédente (`users.veille_seen_at`, mis à jour à chaque visite
+  complète mais pas lors du rechargement qui suit une récupération).
+- **Par personne** : « À lire plus tard » (`feed_saves`) ; « Tâche » crée une tâche (étiquette Veille, pictogramme
+  Analyse, couleur du thème, étape « Lire l'article », lien dans la description) si l'utilisateur a l'app Tâches.
+  Le rôle `viewer` ne peut ni garder ni créer de tâche.
+
 ## App Accès
 
 `UserController`, réservée au propriétaire : créer un compte (il saisit lui-même le mot de passe, aucun e-mail n'est
@@ -210,7 +239,8 @@ déploiement automatique : pousser sur GitHub ne met rien en ligne.
   lire sa sortie (`hosting_cron-jobs_output`) après une minute, puis **la supprimer aussitôt**.
 - Finir par `hosting_cache_clear` : le CDN Hostinger a déjà servi une vieille page.
 - L'environnement cloud « sycenter » autorise les hôtes nécessaires (`sykerio.com`, `srv2121-files.hstgr.io`,
-  `codeload.github.com`, `api.github.com`). Sans les deux derniers, Composer retombe sur des clones git très lents.
+  `codeload.github.com`, `api.github.com`) et les sites des flux de la Veille (pour tester leur lecture ici).
+  Sans `codeload` et `api.github.com`, Composer retombe sur des clones git très lents.
 - Claude n'a pas le mot de passe du compte de Kevin : impossible de tester connecté en production. Vérifier en local
   dans un navigateur (Playwright), puis en production ce qui est accessible sans connexion, et le dire à Kevin.
 
@@ -220,7 +250,8 @@ déploiement automatique : pousser sur GitHub ne met rien en ligne.
   `nosniff`, `Referrer-Policy: same-origin`, `Permissions-Policy` fermée, `X-Powered-By` retiré.
 - **Politique de contenu (CSP)** : scripts du site seulement, et **chaque script en ligne porte le jeton**
   `Vite::cspNonce()` (`@routes(nonce: …)`, `<script nonce="…">` dans `app.blade.php`). Tout nouveau script en ligne
-  doit le porter, sinon il est bloqué. Styles en ligne permis (React, Excalidraw, Inertia). Pas de processus
+  doit le porter, sinon il est bloqué. Images : le site, `data:`, `blob:` et toute adresse https (images des
+  articles de la Veille). Styles en ligne permis (React, Excalidraw, Inertia). Pas de processus
   d'arrière-plan. Désactivée en mode débogage et avec le serveur Vite (pages d'erreur et rechargement à chaud).
   À l'export SVG d'une note, Excalidraw essaie ses polices de secours sur esm.sh : refusées, messages de console
   inoffensifs, le fichier est correct.
@@ -238,7 +269,7 @@ conversation : Kevin a prévu de le changer dans hPanel ; il faudra alors renvoy
 
 ## État et suite
 
-- En ligne : plateforme, Documents (réseau, logiciel), Tâches, Notes, Accès. Branche de travail `claude/festive-wozniak-usldmb` ;
+- En ligne : plateforme, Documents (réseau, logiciel), Tâches, Notes, Veille, Accès. Branche de travail `claude/festive-wozniak-usldmb` ;
   `main` contient encore l'ancien Metronic tant que rien n'est fusionné.
 - À venir : modèle PRA, export DOCX, traduction des
   pages de profil, envoi d'e-mails.

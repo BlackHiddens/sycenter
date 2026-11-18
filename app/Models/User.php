@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -40,6 +41,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'veille_seen_at',
     ];
 
     /**
@@ -53,7 +55,14 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'apps' => 'array',
+            'veille_seen_at' => 'datetime',
         ];
+    }
+
+    /** Articles de veille mis de côté pour plus tard. */
+    public function savedFeedItems(): BelongsToMany
+    {
+        return $this->belongsToMany(FeedItem::class, 'feed_saves')->withTimestamps();
     }
 
     public function tasks(): HasMany

@@ -5,6 +5,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\PracticeController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VeilleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -35,6 +36,13 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('app:notes')->group(function () {
         Route::resource('notes', NoteController::class)->only(['index', 'store', 'edit', 'update', 'destroy']);
         Route::put('notes/{note}/scene', [NoteController::class, 'scene'])->name('notes.scene');
+    });
+
+    Route::middleware('app:veille')->group(function () {
+        Route::get('veille', [VeilleController::class, 'index'])->name('veille.index');
+        Route::post('veille/refresh', [VeilleController::class, 'refresh'])->name('veille.refresh');
+        Route::post('veille/{item}/save', [VeilleController::class, 'save'])->name('veille.save');
+        Route::post('veille/{item}/task', [VeilleController::class, 'toTask'])->name('veille.task');
     });
 
     Route::middleware('app:access')->group(function () {

@@ -1,3 +1,4 @@
+import { postJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import { Lightbulb, SquareTerminal } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -39,8 +40,6 @@ export const matches = (e: Entry, query: string) => {
     return words.every((w) => hay.includes(w));
 };
 
-const xsrf = () => decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
-
 /** Copie le contenu et compte l'usage côté serveur (sans recharger la page) : les fiches utiles remontent. */
 export function useCopy(onUsed?: (id: number) => void) {
     const [copied, setCopied] = useState<number | null>(null);
@@ -52,11 +51,7 @@ export function useCopy(onUsed?: (id: number) => void) {
             window.clearTimeout(timer.current);
             timer.current = window.setTimeout(() => setCopied(null), 1500);
             onUsed?.(e.id);
-            fetch(route('practices.used', e.id), {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf() },
-            }).catch(() => {});
+            postJson(route('practices.used', e.id)).catch(() => {});
         }).catch(() => {});
     }, [onUsed]);
     return { copied, copy };
