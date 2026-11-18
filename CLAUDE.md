@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 46 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 47 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -186,18 +186,25 @@ licence MIT, version figée), et on retrouve une note par son dessin, sa couleur
 ## App Veille
 
 Actualités par thème pour le métier de Kevin : **Développement** (son thème principal, affiché en premier),
-**Cybersécurité**, **Windows**. Cartes avec image, source, court titre et résumé de quelques lignes ; un clic ouvre
-l'article dans un nouvel onglet.
+**Cybersécurité**, **Windows**. Ce sont de vrais flux RSS/Atom : les articles changent avec l'actualité. Cartes avec
+image, source, court titre et résumé de quelques lignes ; un clic ouvre l'article dans un nouvel onglet.
 
-- **Sources** : `config/veille.php` (thèmes avec couleur et pictogramme, puis une ligne par flux RSS/Atom public).
-  Ajouter une source = une ligne. Sources en anglais marquées `EN`. Le blog sécurité de Microsoft (MSRC) refuse les
-  lecteurs automatiques, d'où son absence. CERT-FR a déménagé sur `cert.cyber.gouv.fr`.
-- **Récupération** (`app/Services/FeedReader.php`) : pas de tâche planifiée. À l'ouverture de la page, si la
-  dernière récupération date de plus de 30 min, la page appelle `veille.refresh` en arrière-plan (`fetch`), puis
-  recharge ses articles. Toutes les sources sont lues en parallèle (délai de 10 s), une seule récupération par minute
-  (verrou de cache). Articles communs à tous (`feed_items`), gardés 30 jours, 15 par source au plus.
-  `php artisan sycenter:veille` récupère tout de suite et affiche le résultat par source (utile en production via
-  une tâche planifiée temporaire).
+- **Chacun ses flux** (`feed_sources`, par utilisateur ; articles dans `feed_items`, supprimés avec leur flux) :
+  ajouter, renommer, changer de thème, retirer, depuis le panneau. À la première visite, la liste de départ de
+  `config/veille.php` est posée (13 flux) ; ensuite seul l'utilisateur la modifie. 40 flux au plus. Les thèmes, eux,
+  sont fixes (`config/veille.php` : nom, couleur, pictogramme).
+- **Ajouter un flux** : l'adresse d'un site suffit (`FeedReader::discover` lit la page et suit son
+  `<link rel="alternate" type="application/rss+xml">`). Nom et langue repris du flux si non saisis. Doublon refusé.
+- **Garde-fou** (`FeedReader::isPublic`) : un flux ne doit jamais faire lire au serveur une adresse interne
+  (localhost, réseau privé) ; vérifié à l'ajout, à chaque lecture et à chaque redirection. Réglage
+  `VEILLE_BLOCK_PRIVATE`, actif par défaut : ne le couper que sur un poste sans DNS direct (l'environnement cloud
+  de Claude sort par un proxy, d'où `VEILLE_BLOCK_PRIVATE=false` dans le `.env` local). Jamais en production.
+- **Lecture** : **pas de tâche planifiée** (Kevin n'en veut pas). À l'ouverture de l'app, si un flux a été lu il y a
+  plus de 10 min, la page appelle `veille.refresh` en arrière-plan (`fetch`) puis recharge ses articles. Flux lus en
+  parallèle (délai de 10 s), une lecture par minute et par personne au plus. Motif d'échec gardé sur le flux
+  (`error`, triangle dans le panneau). Articles gardés 30 jours, 15 par flux et par lecture.
+  `php artisan sycenter:veille` relit tout et affiche le résultat par flux (contrôle en production via une tâche
+  planifiée temporaire, à supprimer aussitôt).
 - **Lecture des flux** : RSS 2.0, RSS 1.0 et Atom. Seuls les liens http(s) passent (jamais de `javascript:`), images en
   https seulement. Résumé nettoyé : balises, liens isolés, titre répété en tête, mentions « L'article … est apparu en
   premier sur », coupé à 240 caractères. Dates ramenées au fuseau de l'application.
@@ -205,12 +212,14 @@ l'article dans un nouvel onglet.
   `referrerPolicy="no-referrer"`). Une petite image (logo) est posée entière sur fond neutre plutôt qu'agrandie ;
   sans image, une affiche rayée aux couleurs du thème avec le nom de la source.
 - **Vue « Tout »** : 6 cartes par thème, en alternant les sources (une source bavarde comme Developpez ne prend pas
-  tout le thème). Vue d'un thème : articles groupés par jour. Filtre par source dans le panneau, recherche (`/`).
+  tout le thème). Vue d'un thème : articles groupés par jour. Filtre par flux dans le panneau, recherche (`/`).
 - **Nouveau** : article arrivé depuis la visite précédente (`users.veille_seen_at`, mis à jour à chaque visite
-  complète mais pas lors du rechargement qui suit une récupération).
-- **Par personne** : « À lire plus tard » (`feed_saves`) ; « Tâche » crée une tâche (étiquette Veille, pictogramme
-  Analyse, couleur du thème, étape « Lire l'article », lien dans la description) si l'utilisateur a l'app Tâches.
-  Le rôle `viewer` ne peut ni garder ni créer de tâche.
+  complète, mais ni au rechargement qui suit une lecture, ni au retour après l'ajout ou la modification d'un flux).
+- **À lire plus tard** (`saved_at` sur l'article, épargné par le ménage des 30 jours) ; **Tâche** crée une tâche
+  (étiquette Veille, pictogramme Analyse, couleur du thème, étape « Lire l'article », lien dans la description) si
+  l'utilisateur a l'app Tâches. Le rôle `viewer` lit seulement.
+- Sources de départ écartées : le blog sécurité de Microsoft (MSRC) refuse les lecteurs automatiques. CERT-FR a
+  déménagé sur `cert.cyber.gouv.fr` (non testé d'ici : hôte non autorisé dans l'environnement cloud).
 
 ## App Accès
 

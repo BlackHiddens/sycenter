@@ -3,19 +3,20 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Un article de veille, commun à tous les utilisateurs de l'app. */
+/** Un article lu dans un flux. Il appartient à la personne qui suit ce flux. */
 class FeedItem extends Model
 {
-    protected $fillable = ['source', 'theme', 'guid', 'title', 'summary', 'url', 'image', 'published_at'];
+    protected $fillable = ['feed_source_id', 'guid', 'title', 'summary', 'url', 'image', 'published_at', 'saved_at'];
 
     protected function casts(): array
     {
-        return ['published_at' => 'datetime'];
+        return ['published_at' => 'datetime', 'saved_at' => 'datetime'];
     }
 
-    public function savers()
+    public function source(): BelongsTo
     {
-        return $this->belongsToMany(User::class, 'feed_saves')->withTimestamps();
+        return $this->belongsTo(FeedSource::class, 'feed_source_id');
     }
 }

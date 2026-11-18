@@ -3,93 +3,191 @@
 namespace App\Services;
 
 use App\Models\FeedItem;
+use App\Models\FeedSource;
+use Closure;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use RuntimeException;
 use SimpleXMLElement;
 use Throwable;
 
 /**
- * Récupère les flux RSS / Atom de config/veille.php et range les articles dans feed_items.
- * Pas de processus d'arrière-plan sur l'hébergement : la récupération est lancée par la page quand le cache a vieilli.
+ * Lit les flux RSS / Atom suivis dans la veille et range leurs articles dans feed_items.
+ * Lancé par la page à l'ouverture de l'app quand les flux ont plus de 10 minutes (pas de tâche planifiée).
  */
 class FeedReader
 {
-    public const REFRESHED_AT = 'veille.refreshed_at';
-
     private const AGENT = 'Mozilla/5.0 (compatible; SycenterVeille/1.0)';
 
     private const MAX_BYTES = 4_000_000;
 
-    public static function refreshedAt(): ?Carbon
-    {
-        $at = Cache::get(self::REFRESHED_AT);
-
-        return $at ? Carbon::parse($at) : null;
-    }
-
-    public static function stale(): bool
-    {
-        $at = self::refreshedAt();
-
-        return ! $at || $at->lt(now()->subMinutes(config('veille.refresh_minutes')));
-    }
+    /** Résolution DNS, remplaçable dans les tests (les domaines .test n'existent pas). */
+    public static ?Closure $resolveUsing = null;
 
     /**
-     * Récupère toutes les sources en parallèle. Renvoie, par source, le nombre d'articles lus ou le motif d'échec.
-     *
-     * @return array<string, int|string>
+     * Adresse publique seulement : un flux ajouté à la main ne doit pas faire lire au serveur
+     * une adresse interne (localhost, réseau privé, métadonnées de l'hébergeur).
      */
-    public function refresh(): array
+    public static function isPublic(string $url): bool
     {
-        $sources = config('veille.sources');
-        $responses = Http::pool(fn (Pool $pool) => collect($sources)->map(
-            fn ($s, $key) => $pool->as($key)->withUserAgent(self::AGENT)->accept('application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5')
-                ->connectTimeout(4)->timeout(10)->get($s['url'])
-        )->all());
+        $parts = parse_url($url);
+        if (! in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true) || empty($parts['host']) || isset($parts['user'])) {
+            return false;
+        }
+        // Désactivable seulement sur un poste de développement sans DNS direct (sortie par proxy) : jamais en production.
+        if (! config('veille.block_private')) {
+            return true;
+        }
+        $host = trim($parts['host'], '[]');
+        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : (self::$resolveUsing ? (self::$resolveUsing)($host) : self::resolve($host));
 
-        $report = [];
-        foreach ($sources as $key => $source) {
-            $res = $responses[$key] ?? null;
-            if (! $res instanceof Response) {
-                $report[$key] = 'injoignable';
+        return $ips !== [] && collect($ips)->every(fn ($ip) => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false);
+    }
 
-                continue;
+    private static function resolve(string $host): array
+    {
+        $v4 = gethostbynamel($host) ?: [];
+        $v6 = collect(@dns_get_record($host, DNS_AAAA) ?: [])->pluck('ipv6')->filter()->all();
+
+        return [...$v4, ...$v6];
+    }
+
+    /** Requête commune : délais courts, redirections suivies seulement vers des adresses publiques. */
+    private function request(PendingRequest $r): PendingRequest
+    {
+        return $r->withUserAgent(self::AGENT)
+            ->accept('application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, text/html;q=0.8, */*;q=0.5')
+            ->connectTimeout(4)->timeout(10)
+            ->withOptions(['allow_redirects' => ['max' => 4, 'protocols' => ['http', 'https'], 'on_redirect' => function ($request, $response, $uri) {
+                if (! self::isPublic((string) $uri)) {
+                    throw new RuntimeException('redirection vers une adresse interne');
+                }
+            }]]);
+    }
+
+    /** Lit des flux, en parallèle ; une adresse suivie par plusieurs personnes n'est lue qu'une fois. */
+    public function refresh(Collection $sources): void
+    {
+        $byUrl = $sources->groupBy('url');
+        $urls = $byUrl->keys()->values();
+        $allowed = $urls->filter(fn ($u) => self::isPublic($u));
+        $responses = $allowed->isEmpty() ? [] : Http::pool(fn (Pool $pool) => $allowed->map(fn ($u, $i) => $this->request($pool->as("u{$i}"))->get($u))->all());
+
+        foreach ($urls as $i => $url) {
+            $result = $allowed->has($i) ? $this->read($responses["u{$i}"] ?? null) : 'adresse non autorisée';
+            foreach ($byUrl[$url] as $source) {
+                if (is_array($result)) {
+                    $this->store($source, $result);
+                }
+                $source->forceFill(['fetched_at' => now(), 'error' => is_string($result) ? $result : null])->save();
             }
-            if (! $res->successful()) {
-                $report[$key] = 'HTTP '.$res->status();
-
-                continue;
-            }
-            if (strlen($res->body()) > self::MAX_BYTES) {
-                $report[$key] = 'flux trop volumineux';
-
-                continue;
-            }
-            $items = $this->parse($res->body());
-            if ($items === null) {
-                $report[$key] = 'flux illisible';
-
-                continue;
-            }
-            $report[$key] = $this->store($key, $source['theme'], $items);
         }
 
         $this->prune();
-        Cache::forever(self::REFRESHED_AT, now()->toIso8601String());
+    }
 
-        return $report;
+    /** Articles d'une réponse, ou motif de l'échec. */
+    private function read(mixed $res): array|string
+    {
+        if (! $res instanceof Response) {
+            return 'injoignable';
+        }
+        if (! $res->successful()) {
+            return 'erreur HTTP '.$res->status();
+        }
+        if (strlen($res->body()) > self::MAX_BYTES) {
+            return 'flux trop volumineux';
+        }
+
+        return $this->parse($res->body()) ?? 'pas un flux RSS ou Atom';
     }
 
     /**
-     * Lit un flux RSS 2.0, RSS 1.0 ou Atom. Null si le document n'est pas un flux.
+     * Trouve le flux derrière une adresse : le flux lui-même, ou la page d'un site qui l'annonce
+     * (<link rel="alternate" type="application/rss+xml">). Renvoie le flux et ses articles, ou un message pour Kevin.
      *
-     * @return list<array{guid: string, title: string, summary: ?string, url: string, image: ?string, published_at: Carbon}>|null
+     * @return array{url: string, title: string, lang: ?string, items: array}|string
      */
-    public function parse(string $xml): ?array
+    public function discover(string $url): array|string
+    {
+        $tried = [];
+        if (! parse_url($url, PHP_URL_PATH)) {
+            $url .= '/';
+        }
+        for ($hop = 0; $hop < 2; $hop++) {
+            if (! self::isPublic($url)) {
+                return 'Cette adresse n’est pas accessible depuis Internet.';
+            }
+            try {
+                $res = $this->request(Http::createPendingRequest())->get($url);
+            } catch (Throwable) {
+                return 'Le site ne répond pas.';
+            }
+            if (! $res->successful()) {
+                return "Le site répond par une erreur ({$res->status()}).";
+            }
+            $body = substr($res->body(), 0, self::MAX_BYTES);
+            if ($doc = $this->load($body)) {
+                $items = $this->parse($body);
+                if ($items !== null) {
+                    $title = $this->text((string) ($doc->channel->title ?? '') ?: (string) ($doc->title ?? ''), 80);
+                    $lang = strtolower(substr((string) ($doc->channel->language ?? '') ?: (string) $doc->attributes('xml', true)['lang'], 0, 2));
+
+                    return ['url' => $url, 'title' => $title, 'lang' => $lang !== '' ? $lang : null, 'items' => $items];
+                }
+            }
+            $tried[] = $url;
+            $next = $this->announcedFeed($body, (string) ($res->effectiveUri() ?? $url));
+            if (! $next || in_array($next, $tried, true)) {
+                break;
+            }
+            $url = $next;
+        }
+
+        return 'Aucun flux RSS ou Atom trouvé à cette adresse.';
+    }
+
+    /** Premier flux annoncé dans l'en-tête d'une page HTML, en adresse absolue. */
+    private function announcedFeed(string $html, string $base): ?string
+    {
+        preg_match_all('/<link\b[^>]*>/i', $html, $tags);
+        foreach ($tags[0] as $tag) {
+            if (preg_match('/type=["\']application\/(rss|atom)\+xml["\']/i', $tag) && preg_match('/href=["\']([^"\']+)["\']/i', $tag, $m)) {
+                $href = html_entity_decode($m[1]);
+
+                return $this->absolute($href, $base);
+            }
+        }
+
+        return null;
+    }
+
+    private function absolute(string $href, string $base): ?string
+    {
+        if (preg_match('~^https?://~i', $href)) {
+            return $href;
+        }
+        $b = parse_url($base);
+        if (! isset($b['scheme'], $b['host'])) {
+            return null;
+        }
+        $root = $b['scheme'].'://'.$b['host'].(isset($b['port']) ? ':'.$b['port'] : '');
+        if (str_starts_with($href, '//')) {
+            return $b['scheme'].':'.$href;
+        }
+        if (str_starts_with($href, '/')) {
+            return $root.$href;
+        }
+
+        return $root.rtrim(dirname($b['path'] ?? '/'), '/').'/'.$href;
+    }
+
+    private function load(string $xml): ?SimpleXMLElement
     {
         $previous = libxml_use_internal_errors(true);
         try {
@@ -100,7 +198,19 @@ class FeedReader
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
         }
-        if ($doc === false) {
+
+        return $doc === false ? null : $doc;
+    }
+
+    /**
+     * Lit un flux RSS 2.0, RSS 1.0 ou Atom. Null si le document n'est pas un flux.
+     *
+     * @return list<array{guid: string, title: string, summary: ?string, url: string, image: ?string, published_at: Carbon}>|null
+     */
+    public function parse(string $xml): ?array
+    {
+        $doc = $this->load($xml);
+        if (! $doc) {
             return null;
         }
 
@@ -289,26 +399,23 @@ class FeedReader
         return $date->isFuture() ? now() : $date;
     }
 
-    /** Enregistre les articles récents d'une source, sans doublon. Renvoie le nombre d'articles retenus. */
-    private function store(string $source, string $theme, array $items): int
+    /** Enregistre les articles récents d'une source, sans doublon. Un article déjà là garde son état « mis de côté ». */
+    public function store(FeedSource $source, array $items): int
     {
         $limit = now()->subDays(config('veille.keep_days'));
         $kept = collect($items)->filter(fn ($i) => $i['published_at']->gt($limit))
             ->sortByDesc(fn ($i) => $i['published_at']->getTimestamp())->unique('guid')->take(config('veille.per_source'));
 
         foreach ($kept as $i) {
-            FeedItem::updateOrCreate(['guid' => $i['guid']], [...$i, 'source' => $source, 'theme' => $theme]);
+            FeedItem::updateOrCreate(['feed_source_id' => $source->id, 'guid' => $i['guid']], $i);
         }
 
         return $kept->count();
     }
 
-    /** Oublie les vieux articles et ceux de sources retirées, sauf ceux que quelqu'un a mis de côté. */
+    /** Oublie les articles de plus de 30 jours, sauf ceux mis de côté. */
     private function prune(): void
     {
-        FeedItem::whereDoesntHave('savers')
-            ->where(fn ($q) => $q->where('published_at', '<', now()->subDays(config('veille.keep_days')))
-                ->orWhereNotIn('source', array_keys(config('veille.sources'))))
-            ->delete();
+        FeedItem::whereNull('saved_at')->where('published_at', '<', now()->subDays(config('veille.keep_days')))->delete();
     }
 }

@@ -5,8 +5,8 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -59,10 +59,15 @@ class User extends Authenticatable
         ];
     }
 
-    /** Articles de veille mis de côté pour plus tard. */
-    public function savedFeedItems(): BelongsToMany
+    /** Flux suivis dans l'app Veille. */
+    public function feedSources(): HasMany
     {
-        return $this->belongsToMany(FeedItem::class, 'feed_saves')->withTimestamps();
+        return $this->hasMany(FeedSource::class);
+    }
+
+    public function feedItems(): HasManyThrough
+    {
+        return $this->hasManyThrough(FeedItem::class, FeedSource::class);
     }
 
     public function tasks(): HasMany

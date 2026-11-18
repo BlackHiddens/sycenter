@@ -41,6 +41,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('app:veille')->group(function () {
         Route::get('veille', [VeilleController::class, 'index'])->name('veille.index');
         Route::post('veille/refresh', [VeilleController::class, 'refresh'])->name('veille.refresh');
+        Route::post('veille/sources', [VeilleController::class, 'storeSource'])->name('veille.sources.store');
+        Route::put('veille/sources/{source}', [VeilleController::class, 'updateSource'])->name('veille.sources.update');
+        Route::delete('veille/sources/{source}', [VeilleController::class, 'destroySource'])->name('veille.sources.destroy');
         Route::post('veille/{item}/save', [VeilleController::class, 'save'])->name('veille.save');
         Route::post('veille/{item}/task', [VeilleController::class, 'toTask'])->name('veille.task');
     });

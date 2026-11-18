@@ -1,19 +1,22 @@
 import { Kbd, useSlashFocus } from '@/components/notebook';
 import { fieldClass, PanelSection, Pill, rowClass } from '@/components/sy';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import { postJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
-import { Head, router } from '@inertiajs/react';
-import { AppWindow, ArrowRight, Bookmark, BookmarkCheck, Check, Code2, ListPlus, type LucideIcon, Newspaper, RefreshCw, Search, ShieldAlert, TriangleAlert, X } from 'lucide-react';
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { AppWindow, ArrowRight, Bookmark, BookmarkCheck, Check, Code2, ListPlus, type LucideIcon, Newspaper, Pencil, Plus, RefreshCw, Rss, Search, ShieldAlert, Trash2, TriangleAlert, X } from 'lucide-react';
+import { type CSSProperties, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 type Theme = { name: string; icon: string; color: string };
-type Source = { name: string; theme: string; lang: string };
-type Item = { id: number; source: string; theme: string; title: string; summary: string | null; url: string; image: string | null; published_at: string; created_at: string };
+type Source = { id: number; theme: string; name: string; url: string; lang: string | null; fetched_at: string | null; error: string | null };
+type RawItem = { id: number; feed_source_id: number; title: string; summary: string | null; url: string; image: string | null; published_at: string; saved_at: string | null; created_at: string };
+/** Article prêt pour l'affichage : sa source (clé) et son thème viennent du flux qui l'a apporté. */
+type Item = RawItem & { source: string; theme: string };
 type Props = {
-    themes: Record<string, Theme>; sources: Record<string, Source>; items: Item[]; saved: number[];
-    seenAt: string | null; refreshedAt: string | null; stale: boolean; canWrite: boolean; canTask: boolean;
+    themes: Record<string, Theme>; sources: Source[]; items: RawItem[];
+    seenAt: string | null; refreshedAt: string | null; stale: boolean; canWrite: boolean; canTask: boolean; maxSources: number;
 };
 
 const themeIcons: Record<string, LucideIcon> = { code: Code2, shield: ShieldAlert, monitor: AppWindow };
@@ -131,12 +134,79 @@ function ArticleCard({ item, theme, source, isNew, saved, tasked, canWrite, canT
     );
 }
 
-export default function Veille({ themes, sources, items, saved: savedIds, seenAt, refreshedAt, stale, canWrite, canTask }: Props) {
+/** Ajouter un flux (adresse d'un flux ou d'un site) ou modifier son nom et son thème. */
+function SourceDialog({ themes, editing, onClose }: { themes: Record<string, Theme>; editing: Source | 'new' | null; onClose: () => void }) {
+    const form = useForm({ url: '', name: '', theme: Object.keys(themes)[0] });
+    useEffect(() => {
+        if (!editing) return;
+        form.clearErrors();
+        form.setData(editing === 'new' ? { url: '', name: '', theme: Object.keys(themes)[0] } : { url: editing.url, name: editing.name, theme: editing.theme });
+    }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
+    const options = { preserveScroll: true, onSuccess: onClose };
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        if (editing === 'new') form.post(route('veille.sources.store'), options);
+        else if (editing) form.put(route('veille.sources.update', editing.id), options);
+    };
+    const remove = () => editing && editing !== 'new' && router.delete(route('veille.sources.destroy', editing.id), options);
+    const err = (k: 'url' | 'name' | 'theme') => form.errors[k] && <span className="text-danger text-xs font-normal">{form.errors[k]}</span>;
+    const hint = (t: string) => <span className="text-muted-foreground text-xs font-normal">{t}</span>;
+
+    return (
+        <Dialog open={editing !== null} onOpenChange={(o) => !o && onClose()}>
+            <DialogContent>
+                <form onSubmit={submit} className="grid gap-4">
+                    <DialogHeader>
+                        <DialogTitle>{editing === 'new' ? 'Ajouter un flux' : 'Modifier le flux'}</DialogTitle>
+                        <DialogDescription>{editing === 'new' ? 'L’adresse d’un site suffit : le flux est trouvé tout seul.' : 'Son nom et son thème.'}</DialogDescription>
+                    </DialogHeader>
+                    {editing === 'new' ? (
+                        <label className="grid gap-1.5 text-[0.8125rem] font-medium">Adresse
+                            <input className={fieldClass} required autoFocus type="url" inputMode="url" placeholder="https://www.lemagit.fr" value={form.data.url} onChange={(e) => form.setData('url', e.target.value)} />
+                            {hint('Le site, ou directement son flux RSS ou Atom.')}{err('url')}
+                        </label>
+                    ) : (
+                        <p className="text-muted-foreground flex items-center gap-2 text-xs [overflow-wrap:anywhere]"><Rss className="size-3.5 shrink-0" />{form.data.url}</p>
+                    )}
+                    <fieldset className="grid gap-1.5">
+                        <legend className="mb-1.5 text-[0.8125rem] font-medium">Thème</legend>
+                        <div className="grid grid-cols-3 gap-2">
+                            {Object.entries(themes).map(([k, t]) => (
+                                <label key={k} className={cn('flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-2.5 text-center text-xs font-medium transition-colors', form.data.theme === k ? 'border-foreground/50 bg-accent' : 'hover:bg-accent/60')}>
+                                    <input type="radio" name="theme" value={k} checked={form.data.theme === k} onChange={() => form.setData('theme', k)} className="sr-only" />
+                                    <ThemeTile theme={t} />{t.name}
+                                </label>
+                            ))}
+                        </div>
+                        {err('theme')}
+                    </fieldset>
+                    <label className="grid gap-1.5 text-[0.8125rem] font-medium"><span>Nom{editing === 'new' && <span className="text-muted-foreground font-normal"> (facultatif)</span>}</span>
+                        <input className={fieldClass} required={editing !== 'new'} maxLength={80} placeholder={editing === 'new' ? 'Repris du flux si vide' : undefined} value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
+                        {err('name')}
+                    </label>
+                    {editing !== 'new' && editing?.error && (
+                        <p className="bg-warning-soft text-warning flex items-center gap-2 rounded-lg px-3 py-2 text-xs"><TriangleAlert className="size-3.5 shrink-0" />{`Dernière lecture ratée : ${editing.error}.`}</p>
+                    )}
+                    <DialogFooter className="sm:justify-between">
+                        {editing !== 'new' ? <Button type="button" variant="outline" onClick={remove} title="Ses articles partent aussi, même ceux gardés pour plus tard"><Trash2 /> Retirer</Button> : <span />}
+                        <Button type="submit" disabled={form.processing}>{form.processing ? (editing === 'new' ? 'Recherche du flux…' : 'Enregistrement…') : editing === 'new' ? 'Ajouter' : 'Enregistrer'}</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function Veille({ themes, sources: sourceRows, items: rawItems, seenAt, refreshedAt, stale, canWrite, canTask, maxSources }: Props) {
+    const sources = useMemo(() => Object.fromEntries(sourceRows.map((s) => [String(s.id), s])), [sourceRows]);
+    const items: Item[] = useMemo(() => rawItems.filter((i) => sources[String(i.feed_source_id)])
+        .map((i) => ({ ...i, source: String(i.feed_source_id), theme: sources[String(i.feed_source_id)].theme })), [rawItems, sources]);
+    const savedIds = useMemo(() => rawItems.filter((i) => i.saved_at).map((i) => i.id), [rawItems]);
+    const [editing, setEditing] = useState<Source | 'new' | null>(null);
     const [view, setView] = useState<string>('all');
     const [source, setSource] = useState<string | null>(null);
     const [query, setQuery] = useState('');
     const [busy, setBusy] = useState(false);
-    const [failed, setFailed] = useState<string[]>([]);
     const [saved, setSaved] = useState<number[]>(savedIds);
     const [tasked, setTasked] = useState<number[]>([]);
     const searchRef = useSlashFocus();
@@ -144,8 +214,8 @@ export default function Veille({ themes, sources, items, saved: savedIds, seenAt
 
     const refresh = useCallback((force: boolean) => {
         setBusy(true);
-        postJson<{ refreshed: boolean; failed?: string[] }>(route('veille.refresh'), { force })
-            .then((r) => { if (r.failed) setFailed(r.failed); if (r.refreshed) router.reload({ only: ['items', 'saved', 'refreshedAt', 'stale'] }); })
+        postJson<{ refreshed: boolean }>(route('veille.refresh'), { force })
+            .then((r) => { if (r.refreshed) router.reload({ only: ['items', 'sources', 'refreshedAt', 'stale'] }); })
             .catch(() => {})
             .finally(() => setBusy(false));
     }, []);
@@ -181,26 +251,46 @@ export default function Veille({ themes, sources, items, saved: savedIds, seenAt
 
     const panel = (
         <>
-            <PanelSection label="Sources" aside={<Pill>{Object.keys(sources).length}</Pill>}>
-                {themeKeys.map((t) => (
-                    <div key={t} className="grid gap-0.5 pb-1.5">
-                        <span className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-0.5 text-xs font-medium">
-                            <i className="size-2 rounded-full" style={{ background: themes[t].color }} />{themes[t].name}
-                        </span>
-                        {Object.entries(sources).filter(([, s]) => s.theme === t).map(([key, s]) => (
-                            <button key={key} className={cn(rowClass, 'font-normal', source === key && 'bg-accent font-medium')} aria-pressed={source === key}
-                                onClick={() => { const on = source !== key; setSource(on ? key : null); if (on) setView(t); }}>
-                                <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                                {failed.includes(key) && <TriangleAlert className="text-warning size-3.5 shrink-0" aria-label="Injoignable à la dernière récupération" />}
-                                {s.lang === 'en' && <span className="text-muted-foreground rounded border px-1 text-[0.625rem] leading-4">EN</span>}
-                                <Pill>{items.filter((i) => i.source === key).length}</Pill>
-                            </button>
-                        ))}
-                    </div>
-                ))}
+            <PanelSection label="Mes flux" aside={canWrite && sourceRows.length < maxSources
+                ? <button onClick={() => setEditing('new')} className="text-foreground hover:bg-accent -my-1 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium normal-case tracking-normal"><Plus className="size-3.5" />Ajouter</button>
+                : <Pill>{sourceRows.length}</Pill>}>
+                {themeKeys.map((t) => {
+                    const list = sourceRows.filter((s) => s.theme === t);
+                    return (
+                        <div key={t} className="grid grid-cols-[minmax(0,1fr)] gap-0.5 pb-1.5">
+                            <span className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-0.5 text-xs font-medium">
+                                <i className="size-2 rounded-full" style={{ background: themes[t].color }} />{themes[t].name}
+                            </span>
+                            {list.length === 0 && <span className="text-muted-foreground px-2 py-1 text-xs">Aucun flux.</span>}
+                            {list.map((s) => {
+                                const key = String(s.id);
+                                return (
+                                    <div key={key} className="group flex items-center gap-0.5">
+                                        <button className={cn(rowClass, 'w-auto min-w-0 flex-1 font-normal', source === key && 'bg-accent font-medium')} aria-pressed={source === key}
+                                            onClick={() => { const on = source !== key; setSource(on ? key : null); if (on) setView(t); }}>
+                                            <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                                            {s.error && <TriangleAlert className="text-warning size-3.5 shrink-0" aria-label={`Dernière lecture ratée : ${s.error}`} />}
+                                            {s.lang === 'en' && <span className="text-muted-foreground rounded border px-1 text-[0.625rem] leading-4">EN</span>}
+                                            <Pill>{items.filter((i) => i.source === key).length}</Pill>
+                                        </button>
+                                        {canWrite && (
+                                            <button onClick={() => setEditing(s)} aria-label={`Modifier le flux ${s.name}`} title="Modifier ou retirer"
+                                                className="text-muted-foreground hover:bg-accent hover:text-foreground grid size-7 shrink-0 place-items-center rounded-md opacity-60 group-hover:opacity-100 focus-visible:opacity-100">
+                                                <Pencil className="size-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
+                {canWrite && sourceRows.length < maxSources && (
+                    <Button variant="outline" size="sm" className="mx-1 mt-1" onClick={() => setEditing('new')}><Plus /> Ajouter un flux</Button>
+                )}
             </PanelSection>
             <PanelSection>
-                <p className="text-muted-foreground px-1 text-xs leading-relaxed">Mise à jour toute seule à l'ouverture, toutes les 30 minutes au plus.</p>
+                <p className="text-muted-foreground px-1 text-xs leading-relaxed">Relus à chaque ouverture de l'app.</p>
             </PanelSection>
         </>
     );
@@ -268,8 +358,17 @@ export default function Veille({ themes, sources, items, saved: savedIds, seenAt
                     ) : (
                         <div className="bg-card grid justify-items-center gap-4 rounded-[0.875rem] border px-6 py-10 text-center">
                             <div className="flex gap-2.5" aria-hidden>{themeKeys.map((k, n) => <ThemeTile key={k} theme={themes[k]} className={cn('size-12', n === 0 && '-rotate-6', n === 2 && 'rotate-6')} />)}</div>
-                            <p className="text-muted-foreground max-w-sm text-sm">Pas encore d'articles. La récupération lit les sources de chaque thème.</p>
-                            <Button onClick={() => refresh(true)}><RefreshCw /> Récupérer</Button>
+                            {sourceRows.length === 0 ? (
+                                <>
+                                    <p className="text-muted-foreground max-w-sm text-sm">Aucun flux suivi. Ajoute l'adresse d'un site d'actualité, rangée dans un thème.</p>
+                                    {canWrite && <Button onClick={() => setEditing('new')}><Plus /> Ajouter un flux</Button>}
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-muted-foreground max-w-sm text-sm">Pas encore d'articles dans tes flux.</p>
+                                    <Button onClick={() => refresh(true)}><RefreshCw /> Récupérer</Button>
+                                </>
+                            )}
                         </div>
                     )
                 ) : shownItems.length === 0 ? (
@@ -302,6 +401,7 @@ export default function Veille({ themes, sources, items, saved: savedIds, seenAt
                     ))
                 )}
             </div>
+            <SourceDialog themes={themes} editing={editing} onClose={() => setEditing(null)} />
         </AppLayout>
     );
 }
