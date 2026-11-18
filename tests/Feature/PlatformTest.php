@@ -376,6 +376,36 @@ class PlatformTest extends TestCase
         $this->assertStringStartsWith('%PDF', $pdf->getContent());
     }
 
+    /** en attente : qui, depuis quand, relance proposée après 3 jours, pastille, sortie à réception */
+    public function test_waiting_tasks_and_follow_ups(): void
+    {
+        $user = $this->member(['tasks']);
+        $task = $user->tasks()->create(['title' => 'Correctif éditeur', 'icon' => 'bug', 'hue' => 'rose', 'steps' => [['text' => 'Ticket', 'done' => true], ['text' => 'Tester', 'done' => false]]]);
+
+        $this->actingAs($user)->patch("/tasks/{$task->id}/move", ['status' => 'waiting', 'waiting_for' => 'Éditeur']);
+        $task->refresh();
+        $this->assertSame(['waiting', 'Éditeur', today()->toDateString(), today()->addDays(3)->toDateString()], [$task->status, $task->waiting_for, $task->waiting_since->toDateString(), $task->follow_up_on->toDateString()]);
+
+        // Cocher une étape ne sort pas de l'attente ; seule la dernière termine la tâche.
+        $this->actingAs($user)->put("/tasks/{$task->id}/steps", ['steps' => [['text' => 'Ticket', 'done' => true], ['text' => 'Tester', 'done' => false], ['text' => 'Livrer', 'done' => false]]]);
+        $this->assertSame('waiting', $task->fresh()->status);
+
+        // Relance due : elle compte dans la pastille ; « j'ai relancé » la repousse.
+        $task->update(['follow_up_on' => today()->subDay()]);
+        $this->actingAs($user)->get('/tasks')->assertInertia(fn ($p) => $p->where('apps.0.key', 'tasks')->where('apps.0.badge', 1)->where('tasks.0.icon', 'bug'));
+        $this->actingAs($user)->post("/tasks/{$task->id}/follow-up");
+        $this->assertSame([1, today()->addDays(3)->toDateString()], [$task->fresh()->follow_ups, $task->fresh()->follow_up_on->toDateString()]);
+
+        // Reçu : retour en cours, la relance disparaît, on garde qui on attendait.
+        $this->actingAs($user)->patch("/tasks/{$task->id}/move", ['status' => 'doing']);
+        $task->refresh();
+        $this->assertSame(['doing', null, 'Éditeur'], [$task->status, $task->follow_up_on, $task->waiting_for]);
+        $this->actingAs($user)->post("/tasks/{$task->id}/follow-up")->assertStatus(422);
+
+        $this->actingAs($user)->put("/tasks/{$task->id}", ['title' => 'X', 'status' => 'doing', 'priority' => 'low', 'icon' => 'licorne'])->assertSessionHasErrors('icon');
+        $this->actingAs($this->member(['tasks']))->post("/tasks/{$task->id}/follow-up")->assertForbidden();
+    }
+
     /** notes privées, fermées sans le droit, lecture seule pour le rôle dédié */
     public function test_notes_are_private(): void
     {

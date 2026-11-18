@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 43 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 44 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -109,6 +109,21 @@ d'un dossier d'architecture sans entrer dans le détail. Sortie PDF seulement ; 
 Personnelle : chacun ne voit que ses tâches et ses fiches, propriétaire compris. Kevin se décrit comme peu structuré et
 oublie les étapes de traitement : l'app doit montrer **où il en est** d'un coup d'œil, par le dessin plus que par le texte.
 
+Kevin est **chargé d'application salarié** : mémoire qui flanche, ne sait plus par quoi commencer, oublie les relances.
+Il retient **l'image** d'un sujet, pas son titre : tout doit rester graphique.
+
+- **Image de chaque tâche** (`components/task-visual.tsx`, colonnes `icon`, `hue`) : pictogramme métier (mise à jour,
+  incident, recette, formation…) sur une tuile colorée. Sans choix, initiale du titre et couleur de l'étiquette (les
+  tâches d'un même sujet se ressemblent). Listes alignées sur `Task::ICONS` / `Task::HUES`. Teintes assez foncées pour
+  du blanc dessus.
+- **En attente** (4e colonne, statut `waiting`, colonnes `waiting_for`, `waiting_since`, `follow_up_on`, `follow_ups`) :
+  passer une tâche en attente demande « j'attends qui ? ». La carte montre les initiales dans un **anneau** qui se
+  remplit jusqu'à la relance (bleu, puis ambre quand il faut relancer, rouge quand c'est très dépassé). « Relancer »
+  repousse de `Task::FOLLOW_UP_DAYS` jours, « Reçu » repasse en cours. Les étapes cochées ne sortent pas de l'attente.
+  Relances dues : dans la pastille et dans « Maintenant ».
+- **Démarrer** (`components/task-focus.tsx`) : une seule grande carte à la fois, file figée à l'ouverture
+  (`focusQueue`) : retards, relances dues, échéances du jour, tâches entamées, priorités hautes, puis le reste. Chaque
+  carte dit pourquoi elle passe (`reasonFor`). Gestes : Étape faite / C'est fait, J'attends quelqu'un, Plus tard.
 - **Étapes** (`steps`, JSON `[{text, done}]` sur la tâche ; dessin dans `components/task-steps.tsx`) : barre segmentée sur
   chaque carte, et sous la barre la **prochaine étape**, cochable d'un clic. Dans la fenêtre d'une tâche, un parcours
   vertical (pastilles reliées) enregistré à chaque clic par `tasks.steps`. Une fiche de bonnes pratiques peut être

@@ -6,12 +6,13 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /** Tableau de tâches personnel : chacun ne voit que les siennes. */
 class TaskController extends Controller
 {
-    private const COLUMNS = ['id', 'title', 'notes', 'status', 'priority', 'tag', 'due_date', 'completed_at', 'recurrence', 'steps'];
+    private const COLUMNS = ['id', 'title', 'notes', 'status', 'priority', 'tag', 'due_date', 'completed_at', 'recurrence', 'steps', 'icon', 'hue', 'waiting_for', 'waiting_since', 'follow_up_on', 'follow_ups'];
 
     public function index(Request $request)
     {
@@ -100,17 +101,27 @@ class TaskController extends Controller
     public function move(Request $request, Task $task)
     {
         $this->guard($request, $task);
-        $v = $request->validate(['status' => 'required|in:todo,doing,done', 'before' => 'nullable|integer']);
+        $v = $request->validate(['status' => 'required|in:todo,doing,waiting,done', 'before' => 'nullable|integer', 'waiting_for' => 'nullable|string|max:80']);
         $ids = $request->user()->tasks()->where('status', $v['status'])->whereKeyNot($task->id)->orderBy('position')->orderBy('id')->pluck('id')->all();
         $at = array_search($v['before'] ?? null, $ids, true);
         array_splice($ids, $at === false ? count($ids) : $at, 0, [$task->id]);
 
         $was = $task->status;
-        $task->update(['status' => $v['status']]);
+        $task->update(['status' => $v['status']] + (array_key_exists('waiting_for', $v) ? ['waiting_for' => $v['waiting_for']] : []));
         foreach ($ids as $position => $id) {
             Task::whereKey($id)->update(['position' => $position]);
         }
         $this->settle($task, $was);
+
+        return back();
+    }
+
+    /** J'ai relancé : la prochaine relance est repoussée de quelques jours. */
+    public function followUp(Request $request, Task $task)
+    {
+        $this->guard($request, $task);
+        abort_unless($task->status === 'waiting', 422);
+        $task->update(['follow_up_on' => today()->addDays(Task::FOLLOW_UP_DAYS), 'follow_ups' => min(255, $task->follow_ups + 1)]);
 
         return back();
     }
@@ -170,6 +181,13 @@ class TaskController extends Controller
     {
         $done = $task->status === 'done';
         $task->update(['completed_at' => $done ? ($task->completed_at ?? now()) : null]);
+        // Entrée en attente : on note depuis quand, et la première relance tombe quelques jours plus tard.
+        // Sortie de l'attente : la relance n'a plus d'objet ; on garde qui on attendait, pour mémoire.
+        if ($task->status === 'waiting' && $previousStatus !== 'waiting') {
+            $task->update(['waiting_since' => today(), 'follow_up_on' => $task->follow_up_on ?? today()->addDays(Task::FOLLOW_UP_DAYS), 'follow_ups' => 0]);
+        } elseif ($task->status !== 'waiting' && $previousStatus === 'waiting') {
+            $task->update(['waiting_since' => null, 'follow_up_on' => null]);
+        }
         if (! $done || $previousStatus === 'done' || ! $task->recurrence) {
             return;
         }
@@ -207,15 +225,19 @@ class TaskController extends Controller
         $v = $request->validate([
             'title' => 'required|string|max:160',
             'notes' => 'nullable|string|max:4000',
-            'status' => 'required|in:todo,doing,done',
+            'status' => 'required|in:todo,doing,waiting,done',
             'priority' => 'required|in:low,normal,high',
             'tag' => 'nullable|string|max:40',
             'due_date' => 'nullable|date',
             'recurrence' => 'nullable|in:daily,weekly,monthly',
+            'icon' => ['nullable', Rule::in(Task::ICONS)],
+            'hue' => ['nullable', Rule::in(Task::HUES)],
+            'waiting_for' => 'nullable|string|max:80',
+            'follow_up_on' => 'nullable|date',
             'steps' => 'nullable|array|max:30',
             'steps.*.text' => 'required|string|max:160',
             'steps.*.done' => 'boolean',
-        ], [], ['title' => 'titre', 'due_date' => 'échéance', 'tag' => 'étiquette', 'recurrence' => 'répétition', 'steps.*.text' => 'étape']);
+        ], [], ['title' => 'titre', 'due_date' => 'échéance', 'tag' => 'étiquette', 'recurrence' => 'répétition', 'steps.*.text' => 'étape', 'waiting_for' => 'en attente de', 'follow_up_on' => 'date de relance']);
         if (isset($v['steps'])) {
             $v['steps'] = array_map(fn ($s) => ['text' => $s['text'], 'done' => (bool) ($s['done'] ?? false)], $v['steps']);
         }

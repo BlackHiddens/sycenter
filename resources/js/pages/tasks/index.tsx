@@ -1,22 +1,26 @@
 import { fieldClass, PanelSection, Pill, rowClass } from '@/components/sy';
+import TaskFocus, { reasonFor } from '@/components/task-focus';
 import { nextIndex, type Step, StepBar, StepPath, type Template } from '@/components/task-steps';
+import { daysSince, hueOf, TaskTile, taskHues, taskIcons, WaitingRing } from '@/components/task-visual';
 import TasksPanel from '@/components/tasks-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, BookOpenCheck, CalendarDays, Check, ChevronLeft, ChevronRight, CornerDownRight, Flame, PartyPopper, Plus, Repeat, RotateCcw, Trash2 } from 'lucide-react';
+import { Archive, BellRing, BookOpenCheck, CalendarDays, Check, ChevronLeft, ChevronRight, CornerDownRight, Flame, PartyPopper, Play, Plus, Repeat, RotateCcw, Trash2 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 
-type Status = 'todo' | 'doing' | 'done';
-type Task = { id: number; title: string; notes: string | null; status: Status; priority: 'low' | 'normal' | 'high'; tag: string | null; due_date: string | null; completed_at: string | null; recurrence: string | null; steps: Step[] | null };
+type Status = 'todo' | 'doing' | 'waiting' | 'done';
+type Task = { id: number; title: string; notes: string | null; status: Status; priority: 'low' | 'normal' | 'high'; tag: string | null; due_date: string | null; completed_at: string | null; recurrence: string | null; steps: Step[] | null;
+    icon: string | null; hue: string | null; waiting_for: string | null; waiting_since: string | null; follow_up_on: string | null; follow_ups: number };
 type Review = { id: number; title: string; category: string; body: string };
 type Props = { tasks: Task[]; archivedCount: number; activity: { date: string; count: number }[]; streak: number; review: Review | null; reviewDue: number; practiceCount: number; templates: Template[]; canWrite: boolean };
 
 const columns: { key: Status; label: string; color: string }[] = [
     { key: 'todo', label: 'À faire', color: 'var(--chart-1)' },
     { key: 'doing', label: 'En cours', color: 'var(--chart-3)' },
+    { key: 'waiting', label: 'En attente', color: 'var(--chart-4)' },
     { key: 'done', label: 'Terminé', color: 'var(--chart-2)' },
 ];
 const priorities = { high: { label: 'Haute', color: 'var(--destructive)' }, normal: { label: 'Normale', color: 'var(--chart-1)' }, low: { label: 'Basse', color: 'var(--input)' } };
@@ -26,7 +30,10 @@ const MAX_DOING = 3;
 const today = () => new Date().toLocaleDateString('en-CA'); // AAAA-MM-JJ, heure locale
 const day = (iso: string) => new Date(`${iso}T00:00:00`);
 const shortDate = (iso: string) => day(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-const blank = { title: '', notes: '', status: 'todo' as Status, priority: 'normal', tag: '', due_date: '', recurrence: '', steps: [] as Step[] };
+const blank = { title: '', notes: '', status: 'todo' as Status, priority: 'normal', tag: '', due_date: '', recurrence: '', steps: [] as Step[], icon: '', hue: '', waiting_for: '', follow_up_on: '' };
+const inDays = (iso: string, n: number) => { const d = day(iso); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
+/** Jours d'attente avant relance, comme Task::FOLLOW_UP_DAYS côté serveur. */
+const FOLLOW_UP_DAYS = 3;
 const card = 'bg-card grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 rounded-[0.875rem] border p-4';
 const cardTitle = 'text-muted-foreground flex items-center gap-1.5 text-[0.6875rem] tracking-wider uppercase';
 
@@ -35,6 +42,7 @@ const statusFromSteps = (current: Status, steps: Step[]): Status => {
     const done = steps.filter((s) => s.done).length;
     if (!steps.length) return current;
     if (done === steps.length) return 'done';
+    if (current === 'waiting') return 'waiting';
     if (done > 0) return 'doing';
     return current === 'done' ? 'todo' : current;
 };
@@ -47,6 +55,10 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
     const [over, setOver] = useState<{ status: Status; before: number | null } | null>(null);
     const [quick, setQuick] = useState('');
     const [revealed, setRevealed] = useState(false);
+    const [focusOpen, setFocusOpen] = useState(false);
+    // Passage en attente : on demande d'abord qui on attend.
+    const [asking, setAsking] = useState<{ id: number; before: number | null } | null>(null);
+    const [whoDraft, setWhoDraft] = useState('');
     const form = useForm(blank);
     useEffect(() => setItems(tasks), [tasks]);
     useEffect(() => setRevealed(false), [review?.id]);
@@ -60,23 +72,41 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
     const open = editing !== null && editing !== 'new' ? items.find((t) => t.id === editing) ?? null : null;
     // À traiter maintenant : les retards d'abord, puis ce qui est commencé, puis le reste du jour et les priorités.
     const focus = items
-        .filter((t) => t.status !== 'done' && (isLate(t) || t.status === 'doing' || t.due_date === now || t.priority === 'high'))
-        .sort((a, b) => Number(isLate(b)) - Number(isLate(a)) || Number(b.status === 'doing') - Number(a.status === 'doing') || (a.due_date ?? '9').localeCompare(b.due_date ?? '9'))
+        .map((t) => ({ t, r: reasonFor(t, now) }))
+        .filter((x) => x.r && x.r.rank <= 4)
+        .sort((a, b) => a.r!.rank - b.r!.rank)
+        .map((x) => x.t)
         .slice(0, 5);
+    const toFollowUp = (t: Task) => t.status === 'waiting' && !!t.follow_up_on && t.follow_up_on <= now;
     const peak = Math.max(1, ...activity.map((a) => a.count));
 
     // Les changements s'affichent tout de suite, puis le serveur confirme et renvoie l'état de référence.
     const keep = { preserveScroll: true, preserveState: true };
-    const move = (id: number, status: Status, before: number | null) => {
+    const move = (id: number, status: Status, before: number | null, who?: string) => {
         if (id === before) return;
         const task = items.find((t) => t.id === id);
         if (!task) return;
+        if (status === 'waiting' && task.status !== 'waiting' && who === undefined) {
+            setWhoDraft(task.waiting_for ?? '');
+            setAsking({ id, before });
+            return;
+        }
         const rest = items.filter((t) => t.id !== id);
         const at = before === null ? -1 : rest.findIndex((t) => t.id === before);
-        const moved = { ...task, status };
+        const entering = status === 'waiting' && task.status !== 'waiting';
+        const moved = {
+            ...task, status,
+            ...(entering ? { waiting_for: who || null, waiting_since: now, follow_up_on: inDays(now, FOLLOW_UP_DAYS) } : {}),
+            ...(status !== 'waiting' ? { waiting_since: null, follow_up_on: null } : {}),
+        };
         setItems(at === -1 ? [...rest, moved] : [...rest.slice(0, at), moved, ...rest.slice(at)]);
-        router.patch(route('tasks.move', id), { status, before }, keep);
+        router.patch(route('tasks.move', id), { status, before, ...(who !== undefined ? { waiting_for: who || null } : {}) }, keep);
     };
+    const followUp = (t: Task) => {
+        setItems(items.map((x) => (x.id === t.id ? { ...x, follow_up_on: inDays(now, FOLLOW_UP_DAYS), follow_ups: x.follow_ups + 1 } : x)));
+        router.post(route('tasks.follow-up', t.id), {}, keep);
+    };
+    const received = (t: Task) => move(t.id, 'doing', null);
     const saveSteps = (id: number, steps: Step[]) => {
         setItems(items.map((t) => (t.id === id ? { ...t, steps, status: statusFromSteps(t.status, steps) } : t)));
         router.put(route('tasks.steps', id), { steps }, keep);
@@ -108,7 +138,10 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
 
     const edit = (t: Task | 'new', status: Status = 'todo') => {
         form.clearErrors();
-        form.setData(t === 'new' ? { ...blank, status } : { title: t.title, notes: t.notes ?? '', status: t.status, priority: t.priority, tag: t.tag ?? '', due_date: t.due_date ?? '', recurrence: t.recurrence ?? '', steps: [] });
+        form.setData(t === 'new' ? { ...blank, status } : {
+            title: t.title, notes: t.notes ?? '', status: t.status, priority: t.priority, tag: t.tag ?? '', due_date: t.due_date ?? '', recurrence: t.recurrence ?? '', steps: [],
+            icon: t.icon ?? '', hue: t.hue ?? '', waiting_for: t.waiting_for ?? '', follow_up_on: t.follow_up_on ?? '',
+        });
         setEditing(t === 'new' ? 'new' : t.id);
     };
     const submit = (e: FormEvent) => {
@@ -146,7 +179,7 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
     };
 
     const panel = (
-        <TasksPanel current="board" openTasks={count('todo') + count('doing')} practiceCount={practiceCount} archivedCount={archivedCount}>
+        <TasksPanel current="board" openTasks={count('todo') + count('doing') + count('waiting')} practiceCount={practiceCount} archivedCount={archivedCount}>
             <PanelSection label="Avancement" aside={<Pill>{`${count('done')} sur ${items.length}`}</Pill>}>
                 <div className="px-1">
                     <p className="text-2xl font-medium tabular-nums">{progress} %</p>
@@ -171,7 +204,10 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
     );
 
     return (
-        <AppLayout title="Tableau des tâches" panel={panel} panelTitle="Tâches" actions={canWrite && <Button size="sm" onClick={() => edit('new')}><Plus /> Nouvelle tâche</Button>}>
+        <AppLayout title="Tableau des tâches" panel={panel} panelTitle="Tâches" actions={<>
+            <Button size="sm" onClick={() => setFocusOpen(true)}><Play /> Démarrer</Button>
+            {canWrite && <Button size="sm" variant="outline" onClick={() => edit('new')} aria-label="Nouvelle tâche"><Plus /><span className="max-sm:hidden">Nouvelle tâche</span></Button>}
+        </>}>
             <Head title="Tâches" />
             <div className="grid items-start gap-3.5 md:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(0,1fr)]">
                 <section className={cn(card, 'md:col-span-2 xl:col-span-1')} aria-label="Maintenant">
@@ -179,18 +215,20 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                     {focus.length === 0 ? (
                         <div className="flex items-center gap-3 py-1">
                             <span className="bg-success-soft text-success grid size-10 place-items-center rounded-full"><PartyPopper className="size-5" /></span>
-                            <p className="text-sm font-medium">Rien d'urgent, rien d'entamé.</p>
+                            <p className="text-sm font-medium">Rien d'urgent, rien à relancer.</p>
                         </div>
                     ) : (
                         <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5">
                             {focus.map((t) => (
                                 <li key={t.id} className="grid grid-cols-[minmax(0,1fr)] gap-1">
                                     <div className="flex items-center gap-2.5">
-                                        {checkButton(t)}
+                                        {t.status === 'waiting'
+                                            ? <WaitingRing who={t.waiting_for} since={t.waiting_since} followUp={t.follow_up_on} today={now} className="size-8 [&>span]:size-[1.375rem] [&>span]:text-[0.55rem]" />
+                                            : <TaskTile icon={t.icon} hue={t.hue} tag={t.tag} title={t.title} className="size-8" />}
                                         <button className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:underline" onClick={() => edit(t)}>{t.title}</button>
-                                        {dueChip(t)}
+                                        {t.status === 'waiting' ? <Pill tone="warning"><BellRing className="mr-1 inline size-3 align-[-0.125rem]" />Relancer</Pill> : dueChip(t)}
                                     </div>
-                                    {(t.steps?.length ?? 0) > 0 && <div className="grid grid-cols-[minmax(0,1fr)] gap-1 pl-[1.875rem]"><StepBar steps={t.steps!} />{nextLine(t)}</div>}
+                                    {(t.steps?.length ?? 0) > 0 && t.status !== 'waiting' && <div className="grid grid-cols-[minmax(0,1fr)] gap-1 pl-[2.625rem]"><StepBar steps={t.steps!} />{nextLine(t)}</div>}
                                 </li>
                             ))}
                         </ul>
@@ -242,7 +280,7 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                 </section>
             </div>
 
-            <div className="grid items-start gap-3.5 lg:grid-cols-3">
+            <div className="grid items-start gap-3.5 md:grid-cols-2 xl:grid-cols-4">
                 {columns.map((col, ci) => {
                     const list = shown.filter((t) => t.status === col.key);
                     const active = over?.status === col.key && drag !== null;
@@ -272,20 +310,32 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                                         className={cn('bg-card grid grid-cols-[minmax(0,1fr)] gap-2 rounded-[0.625rem] border border-l-[3px] p-3 shadow-xs', canWrite && 'cursor-grab active:cursor-grabbing', drag === t.id && 'opacity-40', over?.before === t.id && drag !== t.id && 'ring-ring ring-2')}
                                         style={{ borderLeftColor: priorities[t.priority].color }}>
                                         <div className="flex items-start gap-2.5">
-                                            <span className="pt-0.5">{checkButton(t)}</span>
+                                            {t.status === 'waiting'
+                                                ? <WaitingRing who={t.waiting_for} since={t.waiting_since} followUp={t.follow_up_on} today={now} />
+                                                : <TaskTile icon={t.icon} hue={t.hue} tag={t.tag} title={t.title} className={cn(t.status === 'done' && 'opacity-50')} />}
                                             <button className="min-w-0 flex-1 text-left hover:underline" onClick={() => edit(t)} aria-label={`Ouvrir la tâche ${t.title}`}>
                                                 <span className={cn('block text-sm font-medium break-words', t.status === 'done' && 'text-muted-foreground line-through')}>{t.title}</span>
+                                                {t.status === 'waiting' && (
+                                                    <span className="text-muted-foreground block text-xs">{`${t.waiting_for || 'Quelqu’un'} · depuis ${daysSince(t.waiting_since, now)} j${t.follow_ups ? ` · ${t.follow_ups} relance${t.follow_ups > 1 ? 's' : ''}` : ''}`}</span>
+                                                )}
                                             </button>
+                                            {t.status !== 'waiting' && <span className="pt-0.5">{checkButton(t)}</span>}
                                         </div>
-                                        {steps.length > 0 && <div className="grid grid-cols-[minmax(0,1fr)] gap-1 pl-[1.875rem]"><StepBar steps={steps} />{nextLine(t)}</div>}
-                                        <div className="flex flex-wrap items-center gap-1.5 pl-[1.875rem]">
+                                        {steps.length > 0 && t.status !== 'waiting' && <div className="grid grid-cols-[minmax(0,1fr)] gap-1 pl-[2.875rem]"><StepBar steps={steps} />{nextLine(t)}</div>}
+                                        {t.status === 'waiting' && canWrite && (
+                                            <div className="flex flex-wrap gap-1.5 pl-[3.125rem]">
+                                                <Button size="sm" variant={toFollowUp(t) ? 'default' : 'outline'} className="h-7 px-2.5 text-xs" onClick={() => followUp(t)}><BellRing /> {toFollowUp(t) ? 'Relancer' : "J'ai relancé"}</Button>
+                                                <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={() => received(t)}><Check /> Reçu</Button>
+                                            </div>
+                                        )}
+                                        <div className="flex flex-wrap items-center gap-1.5 pl-[2.875rem]">
                                             {t.tag && <Pill>{t.tag}</Pill>}
                                             {dueChip(t)}
                                             {t.recurrence && <Pill><Repeat className="inline size-3 align-[-1px]" aria-label={repeats[t.recurrence]} /></Pill>}
                                             {canWrite && (
                                                 <span className="ml-auto flex">
                                                     {ci > 0 && <Button variant="ghost" size="sm" className="size-6 p-0" aria-label={`Déplacer vers ${columns[ci - 1].label}`} onClick={() => move(t.id, columns[ci - 1].key, null)}><ChevronLeft /></Button>}
-                                                    {ci < 2 && <Button variant="ghost" size="sm" className="size-6 p-0" aria-label={`Déplacer vers ${columns[ci + 1].label}`} onClick={() => move(t.id, columns[ci + 1].key, null)}><ChevronRight /></Button>}
+                                                    {ci < columns.length - 1 && <Button variant="ghost" size="sm" className="size-6 p-0" aria-label={`Déplacer vers ${columns[ci + 1].label}`} onClick={() => move(t.id, columns[ci + 1].key, null)}><ChevronRight /></Button>}
                                                     {t.status === 'done' && <Button variant="ghost" size="sm" className="size-6 p-0" aria-label={`Archiver ${t.title}`} onClick={() => archive(t.id)}><Archive /></Button>}
                                                 </span>
                                             )}
@@ -317,6 +367,36 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                     </section>
                     <form onSubmit={submit} className="grid gap-4 border-t pt-4">
                         <label className="grid gap-1.5 text-[0.8125rem] font-medium">Titre<input className={fieldClass} required maxLength={160} autoFocus={editing === 'new'} disabled={!canWrite} value={form.data.title} onChange={(e) => form.setData('title', e.target.value)} />{form.errors.title && <span className="text-danger text-xs font-normal">{form.errors.title}</span>}</label>
+                        <fieldset className="grid gap-2" disabled={!canWrite}>
+                            <legend className="mb-1.5 flex items-center gap-2.5 text-[0.8125rem] font-medium">
+                                <TaskTile icon={form.data.icon || null} hue={form.data.hue || null} tag={form.data.tag || null} title={form.data.title || '?'} className="size-8" />
+                                Image de la tâche
+                            </legend>
+                            <div className="grid grid-cols-8 gap-1" role="radiogroup" aria-label="Pictogramme">
+                                {Object.entries(taskIcons).map(([key, { icon: Icon, label }]) => (
+                                    <button type="button" key={key} role="radio" aria-checked={form.data.icon === key} aria-label={label} title={label}
+                                        onClick={() => form.setData('icon', form.data.icon === key ? '' : key)}
+                                        className={cn('grid aspect-square place-items-center rounded-md border transition-colors', form.data.icon === key ? 'text-white' : 'text-muted-foreground hover:text-foreground border-transparent bg-muted/60')}
+                                        style={form.data.icon === key ? { background: hueOf(form.data.hue || null, form.data.tag || null), borderColor: 'transparent' } : undefined}>
+                                        <Icon className="size-4" />
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Couleur">
+                                {Object.entries(taskHues).map(([key, hex]) => (
+                                    <button type="button" key={key} role="radio" aria-checked={form.data.hue === key} aria-label={`Couleur ${key}`}
+                                        onClick={() => form.setData('hue', form.data.hue === key ? '' : key)}
+                                        className={cn('size-6 rounded-full border-2 border-transparent transition-transform hover:scale-110', form.data.hue === key && 'border-foreground scale-110')} style={{ background: hex }} />
+                                ))}
+                                <span className="text-muted-foreground ml-1 text-xs">Sans choix : couleur de l'étiquette.</span>
+                            </div>
+                        </fieldset>
+                        {form.data.status === 'waiting' && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="grid gap-1.5 text-[0.8125rem] font-medium">En attente de<input className={fieldClass} maxLength={80} placeholder="Éditeur, collègue…" disabled={!canWrite} value={form.data.waiting_for} onChange={(e) => form.setData('waiting_for', e.target.value)} /></label>
+                                <label className="grid gap-1.5 text-[0.8125rem] font-medium">Relancer le<input className={fieldClass} type="date" disabled={!canWrite} value={form.data.follow_up_on} onChange={(e) => form.setData('follow_up_on', e.target.value)} /></label>
+                            </div>
+                        )}
                         <label className="grid gap-1.5 text-[0.8125rem] font-medium">Notes<textarea className={`${fieldClass} h-auto py-2`} rows={2} disabled={!canWrite} value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} /></label>
                         <div className="grid gap-3 sm:grid-cols-2">
                             {editing === 'new' && <label className="grid gap-1.5 text-[0.8125rem] font-medium">Colonne<select className={fieldClass} value={form.data.status} onChange={(e) => form.setData('status', e.target.value as Status)}>{columns.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select></label>}
@@ -339,6 +419,26 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                     </form>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={asking !== null} onOpenChange={(o) => !o && setAsking(null)}>
+                <DialogContent className="sm:max-w-sm">
+                    <form className="grid gap-4" onSubmit={(e) => { e.preventDefault(); if (asking) move(asking.id, 'waiting', asking.before, whoDraft.trim()); setAsking(null); }}>
+                        <DialogHeader>
+                            <DialogTitle>J'attends qui ?</DialogTitle>
+                            <DialogDescription>{`Une relance te sera proposée dans ${FOLLOW_UP_DAYS} jours.`}</DialogDescription>
+                        </DialogHeader>
+                        <input className={fieldClass} autoFocus maxLength={80} placeholder="Éditeur, collègue, service…" value={whoDraft} onChange={(e) => setWhoDraft(e.target.value)} aria-label="En attente de" />
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setAsking(null)}>Annuler</Button>
+                            <Button type="submit">Mettre en attente</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <TaskFocus open={focusOpen} onOpenChange={setFocusOpen} tasks={items} today={now} canWrite={canWrite}
+                onStep={checkNext} onDone={(t) => move(t.id, 'done', null)} onWait={(t, who) => move(t.id, 'waiting', null, who)}
+                onFollowUp={followUp} onReceived={received} />
         </AppLayout>
     );
 }

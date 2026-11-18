@@ -69,6 +69,7 @@ class HandleInertiaRequests extends Middleware
     private function tasksBadge($user): int
     {
         return $user->tasks()->onBoard()->where('status', '!=', 'done')->whereDate('due_date', '<=', today())->count()
+            + $user->tasks()->onBoard()->where('status', 'waiting')->whereDate('follow_up_on', '<=', today())->count()
             + $user->practices()->due()->count();
     }
 }

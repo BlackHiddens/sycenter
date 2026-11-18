@@ -25,6 +25,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('tasks/{task}/archive', [TaskController::class, 'archiveOne'])->name('tasks.archive-one');
         Route::post('tasks/{task}/restore', [TaskController::class, 'restore'])->name('tasks.restore');
         Route::put('tasks/{task}/steps', [TaskController::class, 'steps'])->name('tasks.steps');
+        Route::post('tasks/{task}/follow-up', [TaskController::class, 'followUp'])->name('tasks.follow-up');
         Route::resource('tasks', TaskController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::patch('tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
         Route::post('practices/{practice}/review', [PracticeController::class, 'review'])->name('practices.review');
