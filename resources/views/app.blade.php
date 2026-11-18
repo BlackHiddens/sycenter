@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
+        <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
         <title inertia>{{ config('app.name', 'Sycenter') }}</title>
 
         {{-- Polices du dessin des notes (Excalidraw), servies par le site plutôt que par un CDN. --}}

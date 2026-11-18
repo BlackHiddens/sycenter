@@ -329,6 +329,15 @@ class PlatformTest extends TestCase
         $this->actingAs($user)->put("/notes/{$note->id}", ['color' => 'fuchsia'])->assertSessionHasErrors('color');
     }
 
+    /** la plateforme demande partout à ne pas être indexée : pages, redirections, erreurs */
+    public function test_every_response_asks_not_to_be_indexed(): void
+    {
+        $login = $this->get('/login')->assertOk()->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+        $this->assertStringContainsString('<meta name="robots" content="noindex', $login->getContent());
+        $this->get('/')->assertRedirect('/login')->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+        $this->get('/register')->assertNotFound()->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+    }
+
     /** notes privées, fermées sans le droit, lecture seule pour le rôle dédié */
     public function test_notes_are_private(): void
     {

@@ -1,3 +1,9 @@
+# Plateforme privée : les fichiers servis directement (scripts, polices, images) ne doivent pas être indexés
+# non plus. Les pages passent par Laravel, qui pose le même en-tête (App\Http\Middleware\NoIndex).
+<IfModule mod_headers.c>
+    Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

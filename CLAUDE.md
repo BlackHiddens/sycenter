@@ -20,7 +20,7 @@ Base de départ : `laravel/react-starter-kit`. L'ancien starter Metronic / Larav
 composer install && npm install && cp .env.example .env && php artisan key:generate
 php artisan migrate && php artisan sycenter:owner mail@exemple.fr "Nom"   # compte propriétaire
 composer run dev          # serveur + Vite
-php artisan test          # 40 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
+php artisan test          # 41 tests, tous dans tests/Feature (PlatformTest couvre la plateforme)
 npm run contrast          # contraste WCAG des thèmes, doit rester à 100 %
 npx tsc --noEmit && vendor/bin/pint
 ```
@@ -32,6 +32,10 @@ npx tsc --noEmit && vendor/bin/pint
 - **Droits** (`app/Models/User.php`) : `role` = `owner` | `user` | `viewer`, et `apps` = liste JSON des clés autorisées.
   `canUse(app)` : le propriétaire a tout ; `owner_only` (l'app Accès) lui est réservée. `canWrite()` est faux pour `viewer`,
   qui consulte et télécharge sans rien modifier. Pas de paquet de permissions : c'est volontairement simple.
+- **Non référencé** (demande de Kevin) : toute réponse porte `X-Robots-Tag: noindex…` (middleware global `NoIndex`,
+  et `public/.htaccess` pour les fichiers statiques), plus la balise meta `robots` dans `app.blade.php`. `robots.txt`
+  refuse les robots d'IA mais **laisse passer les moteurs de recherche** : ils doivent pouvoir lire le `noindex` pour
+  retirer les anciennes pages du site vitrine. Ne pas le changer en `Disallow: /` général.
 - **Pas d'inscription publique** : la route `/register` n'existe pas. Le propriétaire ne peut ni être modifié, ni supprimé,
   ni supprimer son propre compte.
 - **Données partagées avec React** (`HandleInertiaRequests`) : `auth.user`, et `apps` (ce que l'utilisateur voit, avec `href`
