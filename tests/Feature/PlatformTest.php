@@ -211,24 +211,25 @@ class PlatformTest extends TestCase
             ->where('archivedCount', 1)
             ->has('tasks', 3)
             ->where('activity.6.count', 1)
-            ->where('review.title', 'T')
-            ->where('apps.0.key', 'tasks')->where('apps.0.badge', 2));
+            ->where('notebook.0.title', 'T')
+            ->where('apps.0.key', 'tasks')->where('apps.0.badge', 1));
     }
 
-    /** révision espacée : une fiche sue s'éloigne, une fiche oubliée revient demain */
-    public function test_practice_review_schedules_next_date(): void
+    /** carnet : chaque copie compte, les fiches les plus servies remontent en tête */
+    public function test_notebook_counts_uses_and_sorts_most_used_first(): void
     {
         $user = $this->member(['tasks']);
-        $practice = $user->practices()->create(['title' => 'T', 'category' => 'Git', 'body' => 'B']);
+        $rare = $user->practices()->create(['title' => 'A rare', 'category' => 'Git', 'body' => 'git reflog']);
+        $daily = $user->practices()->create(['title' => 'Z quotidienne', 'category' => 'PowerShell', 'body' => 'gpupdate /force']);
 
-        $this->actingAs($user)->post("/practices/{$practice->id}/review", ['remembered' => true]);
-        $this->assertSame(2, $practice->fresh()->interval_days);
-        $this->assertSame(today()->addDays(2)->toDateString(), $practice->fresh()->review_at->toDateString());
-        $this->actingAs($user)->get('/tasks')->assertInertia(fn ($page) => $page->where('review', null)->where('reviewDue', 0));
+        $this->actingAs($user)->post("/practices/{$daily->id}/used")->assertNoContent();
+        $this->actingAs($user)->post("/practices/{$daily->id}/used")->assertNoContent();
+        $this->assertSame(2, $daily->fresh()->uses);
+        $this->assertNotNull($daily->fresh()->last_used_at);
 
-        $this->actingAs($user)->post("/practices/{$practice->id}/review", ['remembered' => false]);
-        $this->assertSame(1, $practice->fresh()->interval_days);
-        $this->actingAs($this->member(['tasks']))->post("/practices/{$practice->id}/review", ['remembered' => true])->assertForbidden();
+        $this->actingAs($user)->get('/practices')->assertInertia(fn ($page) => $page->where('practices.0.id', $daily->id)->where('practices.1.id', $rare->id));
+        $this->actingAs($user)->get('/tasks')->assertInertia(fn ($page) => $page->where('notebook.0.id', $daily->id)->where('notebook.0.uses', 2));
+        $this->actingAs($this->member(['tasks']))->post("/practices/{$rare->id}/used")->assertForbidden();
     }
 
     /** cocher les étapes fait avancer la tâche de colonne, dans les deux sens */

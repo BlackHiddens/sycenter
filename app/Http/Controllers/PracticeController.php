@@ -6,13 +6,13 @@ use App\Models\Practice;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-/** Carnet personnel de bonnes pratiques, dans l'app Tâches. */
+/** Carnet personnel (commandes, astuces) dans l'app Tâches : on note pour ne pas chercher deux fois. */
 class PracticeController extends Controller
 {
     public function index(Request $request)
     {
         return Inertia::render('tasks/practices', [
-            'practices' => $request->user()->practices()->orderBy('category')->orderBy('title')->get(['id', 'title', 'category', 'body']),
+            'practices' => $request->user()->practices()->handy()->get(['id', 'title', 'category', 'body', 'uses', 'last_used_at', 'updated_at']),
             'openTasks' => $request->user()->tasks()->onBoard()->where('status', '!=', 'done')->count(),
             'archivedCount' => $request->user()->tasks()->archived()->count(),
             'canWrite' => $request->user()->canWrite(),
@@ -35,17 +35,14 @@ class PracticeController extends Controller
         return back();
     }
 
-    /**
-     * Révision espacée : une fiche sue revient deux fois plus tard (60 jours au plus),
-     * une fiche oubliée revient le lendemain.
-     */
-    public function review(Request $request, Practice $practice)
+    /** Une fiche copiée : elle remonte dans le carnet. Ne passe pas par Inertia, la page ne bouge pas. */
+    public function used(Request $request, Practice $practice)
     {
-        $this->guard($request, $practice);
-        $days = $request->validate(['remembered' => 'required|boolean'])['remembered'] ? min($practice->interval_days * 2, 60) : 1;
-        $practice->update(['interval_days' => $days, 'review_at' => today()->addDays($days)]);
+        abort_unless($practice->user_id === $request->user()->id, 403);
+        $practice->timestamps = false;
+        $practice->forceFill(['uses' => $practice->uses + 1, 'last_used_at' => now()])->save();
 
-        return back();
+        return response()->noContent();
     }
 
     public function destroy(Request $request, Practice $practice)

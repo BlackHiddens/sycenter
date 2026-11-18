@@ -65,11 +65,10 @@ class HandleInertiaRequests extends Middleware
             ->values()->all();
     }
 
-    /** Ce qui attend dans l'app Tâches : échéances atteintes et fiches à réviser. */
+    /** Ce qui attend dans l'app Tâches : échéances atteintes et relances dues. */
     private function tasksBadge($user): int
     {
         return $user->tasks()->onBoard()->where('status', '!=', 'done')->whereDate('due_date', '<=', today())->count()
-            + $user->tasks()->onBoard()->where('status', 'waiting')->whereDate('follow_up_on', '<=', today())->count()
-            + $user->practices()->due()->count();
+            + $user->tasks()->onBoard()->where('status', 'waiting')->whereDate('follow_up_on', '<=', today())->count();
     }
 }

@@ -1,6 +1,7 @@
+import { categoryColors, type Entry, EntryTile, isCode, Kbd, matches, useCopy, useSlashFocus } from '@/components/notebook';
 import { fieldClass, PanelSection, Pill, rowClass } from '@/components/sy';
 import TaskFocus, { reasonFor } from '@/components/task-focus';
-import { nextIndex, type Step, StepBar, StepPath, type Template } from '@/components/task-steps';
+import { nextIndex, type Step, StepBar, StepPath } from '@/components/task-steps';
 import { daysSince, hueOf, TaskTile, taskHues, taskIcons, WaitingRing } from '@/components/task-visual';
 import TasksPanel from '@/components/tasks-panel';
 import { Button } from '@/components/ui/button';
@@ -8,14 +9,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, BellRing, BookOpenCheck, CalendarDays, Check, ChevronLeft, ChevronRight, CornerDownRight, Flame, PartyPopper, Play, Plus, Repeat, RotateCcw, Trash2 } from 'lucide-react';
+import { Archive, ArrowRight, BellRing, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, CornerDownRight, Flame, NotebookTabs, PartyPopper, Play, Plus, Repeat, Search, Trash2 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 
 type Status = 'todo' | 'doing' | 'waiting' | 'done';
 type Task = { id: number; title: string; notes: string | null; status: Status; priority: 'low' | 'normal' | 'high'; tag: string | null; due_date: string | null; completed_at: string | null; recurrence: string | null; steps: Step[] | null;
     icon: string | null; hue: string | null; waiting_for: string | null; waiting_since: string | null; follow_up_on: string | null; follow_ups: number };
-type Review = { id: number; title: string; category: string; body: string };
-type Props = { tasks: Task[]; archivedCount: number; activity: { date: string; count: number }[]; streak: number; review: Review | null; reviewDue: number; practiceCount: number; templates: Template[]; canWrite: boolean };
+type Props = { tasks: Task[]; archivedCount: number; activity: { date: string; count: number }[]; streak: number; notebook: Entry[]; canWrite: boolean };
 
 const columns: { key: Status; label: string; color: string }[] = [
     { key: 'todo', label: 'À faire', color: 'var(--chart-1)' },
@@ -47,27 +47,31 @@ const statusFromSteps = (current: Status, steps: Step[]): Status => {
     return current === 'done' ? 'todo' : current;
 };
 
-export default function Tasks({ tasks, archivedCount, activity, streak, review, reviewDue, practiceCount, templates, canWrite }: Props) {
+export default function Tasks({ tasks, archivedCount, activity, streak, notebook, canWrite }: Props) {
     const [items, setItems] = useState(tasks);
     const [tag, setTag] = useState<string | null>(null);
     const [editing, setEditing] = useState<number | 'new' | null>(null);
     const [drag, setDrag] = useState<number | null>(null);
     const [over, setOver] = useState<{ status: Status; before: number | null } | null>(null);
     const [quick, setQuick] = useState('');
-    const [revealed, setRevealed] = useState(false);
+    const [lookup, setLookup] = useState('');
+    const { copied, copy } = useCopy();
+    const lookupRef = useSlashFocus();
     const [focusOpen, setFocusOpen] = useState(false);
     // Passage en attente : on demande d'abord qui on attend.
     const [asking, setAsking] = useState<{ id: number; before: number | null } | null>(null);
     const [whoDraft, setWhoDraft] = useState('');
     const form = useForm(blank);
     useEffect(() => setItems(tasks), [tasks]);
-    useEffect(() => setRevealed(false), [review?.id]);
 
     const now = today();
     const isLate = (t: Task) => t.status !== 'done' && !!t.due_date && t.due_date < now;
     const count = (s: Status) => items.filter((t) => t.status === s).length;
     const tags = [...new Set(items.map((t) => t.tag).filter(Boolean) as string[])].sort();
     const shown = tag ? items.filter((t) => t.tag === tag) : items;
+    const notebookColor = categoryColors(notebook).color;
+    // Sans recherche : les fiches les plus copiées. Avec : les meilleures correspondances, déjà triées par usage.
+    const found = notebook.filter((e) => matches(e, lookup)).slice(0, 3);
     const progress = items.length ? Math.round((count('done') / items.length) * 100) : 0;
     const open = editing !== null && editing !== 'new' ? items.find((t) => t.id === editing) ?? null : null;
     // À traiter maintenant : les retards d'abord, puis ce qui est commencé, puis le reste du jour et les priorités.
@@ -134,7 +138,6 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
         if (!quick.trim()) return;
         router.post(route('tasks.store'), { ...blank, title: quick.trim(), tag: tag ?? '' }, { ...keep, onSuccess: () => setQuick('') });
     };
-    const answer = (remembered: boolean) => review && router.post(route('practices.review', review.id), { remembered }, keep);
 
     const edit = (t: Task | 'new', status: Status = 'todo') => {
         form.clearErrors();
@@ -179,7 +182,7 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
     };
 
     const panel = (
-        <TasksPanel current="board" openTasks={count('todo') + count('doing') + count('waiting')} practiceCount={practiceCount} archivedCount={archivedCount}>
+        <TasksPanel current="board" openTasks={count('todo') + count('doing') + count('waiting')} practiceCount={notebook.length} archivedCount={archivedCount}>
             <PanelSection label="Avancement" aside={<Pill>{`${count('done')} sur ${items.length}`}</Pill>}>
                 <div className="px-1">
                     <p className="text-2xl font-medium tabular-nums">{progress} %</p>
@@ -250,32 +253,46 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                     </div>
                 </section>
 
-                <section className={card} aria-label="À réviser">
-                    <h2 className={cardTitle}><BookOpenCheck className="size-3.5" />À réviser{reviewDue > 0 && <Pill>{reviewDue}</Pill>}</h2>
-                    {review ? (
+                <section className={card} aria-label="Carnet">
+                    <h2 className={cardTitle}>
+                        <NotebookTabs className="size-3.5" />Carnet
+                        {notebook.length > 0 && <Link href={route('practices.index')} className="hover:text-foreground ml-auto flex items-center gap-1 normal-case tracking-normal">Tout voir<ArrowRight className="size-3" /></Link>}
+                    </h2>
+                    {notebook.length > 0 ? (
                         <>
-                            <div><Pill>{review.category}</Pill><p className="mt-1.5 text-sm font-medium [overflow-wrap:anywhere]">{review.title}</p></div>
-                            {revealed ? (
-                                <>
-                                    <p className="text-muted-foreground max-h-28 overflow-y-auto text-[0.8125rem] [overflow-wrap:anywhere] whitespace-pre-wrap">{review.body}</p>
-                                    {canWrite && (
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button size="sm" onClick={() => answer(true)}><Check /> Je savais</Button>
-                                            <Button size="sm" variant="outline" onClick={() => answer(false)}><RotateCcw /> À revoir</Button>
-                                        </div>
-                                    )}
-                                </>
+                            <label className="relative block">
+                                <span className="sr-only">Chercher dans le carnet</span>
+                                <Search className="text-muted-foreground absolute top-2.5 left-3 size-4" />
+                                <input ref={lookupRef} className={`${fieldClass} pr-9 pl-9`} type="search" placeholder="Une commande, un mot…" value={lookup} onChange={(e) => setLookup(e.target.value)} />
+                                {!lookup && <Kbd>/</Kbd>}
+                            </label>
+                            {found.length > 0 ? (
+                                <ul className="grid grid-cols-[minmax(0,1fr)] gap-1">
+                                    {found.map((e) => (
+                                        <li key={e.id}>
+                                            <button onClick={() => copy(e)} title="Copier" aria-label={`Copier : ${e.title}`} className="hover:bg-muted group flex w-full min-w-0 items-center gap-2.5 rounded-lg p-1 text-left">
+                                                <EntryTile entry={e} color={notebookColor(e.category)} className="size-8" />
+                                                <span className="grid min-w-0 flex-1">
+                                                    <span className="truncate text-sm font-medium">{e.title}</span>
+                                                    <span className={cn('text-muted-foreground truncate text-xs', isCode(e) && 'font-mono')}>{e.body.split('\n')[0]}</span>
+                                                </span>
+                                                <span className={cn('grid size-7 shrink-0 place-items-center rounded-md', copied === e.id ? 'bg-success-soft text-success' : 'text-muted-foreground opacity-60 group-hover:opacity-100')}>
+                                                    {copied === e.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                                                </span>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
                             ) : (
-                                <div><Button size="sm" variant="outline" onClick={() => setRevealed(true)}>Voir la réponse</Button></div>
+                                <p className="text-muted-foreground text-sm">Rien pour « {lookup.trim()} ».</p>
                             )}
                         </>
-                    ) : practiceCount > 0 ? (
-                        <div className="flex items-center gap-3 py-1">
-                            <span className="bg-success-soft text-success grid size-10 place-items-center rounded-full"><Check className="size-5" /></span>
-                            <p className="text-sm font-medium">Tout est révisé.</p>
-                        </div>
                     ) : (
-                        <div><Button size="sm" variant="outline" asChild><Link href={route('practices.index')}><Plus /> Première fiche</Link></Button></div>
+                        <div className="flex items-center gap-3">
+                            <EntryTile entry={{ category: 'PowerShell', body: '' }} color="var(--chart-1)" className="size-10" />
+                            <p className="text-muted-foreground min-w-0 flex-1 text-sm">Les commandes et astuces qu'on oublie, à portée de copie.</p>
+                            {canWrite && <Button size="sm" variant="outline" asChild><Link href={route('practices.index')}><Plus /> Noter</Link></Button>}
+                        </div>
                     )}
                 </section>
             </div>
@@ -360,9 +377,9 @@ export default function Tasks({ tasks, archivedCount, activity, streak, review, 
                             Étapes{(open ? open.steps : form.data.steps)?.length ? <Pill>{`${(open ? open.steps! : form.data.steps).filter((s) => s.done).length}/${(open ? open.steps! : form.data.steps).length}`}</Pill> : null}
                         </h3>
                         {open ? (
-                            <StepPath steps={open.steps ?? []} onChange={(s) => saveSteps(open.id, s)} templates={templates} canWrite={canWrite} />
+                            <StepPath steps={open.steps ?? []} onChange={(s) => saveSteps(open.id, s)} templates={notebook} canWrite={canWrite} />
                         ) : (
-                            <StepPath steps={form.data.steps} onChange={(s) => form.setData('steps', s)} templates={templates} canWrite={canWrite} />
+                            <StepPath steps={form.data.steps} onChange={(s) => form.setData('steps', s)} templates={notebook} canWrite={canWrite} />
                         )}
                     </section>
                     <form onSubmit={submit} className="grid gap-4 border-t pt-4">

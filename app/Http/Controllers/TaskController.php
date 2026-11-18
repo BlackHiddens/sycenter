@@ -31,10 +31,7 @@ class TaskController extends Controller
             'archivedCount' => $user->tasks()->archived()->count(),
             'activity' => collect(range(6, 0))->map(fn ($i) => ['date' => today()->subDays($i)->toDateString(), 'count' => $perDay->get(today()->subDays($i)->toDateString(), 0)]),
             'streak' => $streak,
-            'review' => $user->practices()->due()->orderByRaw('review_at is null desc')->orderBy('review_at')->first(['id', 'title', 'category', 'body']),
-            'reviewDue' => $user->practices()->due()->count(),
-            'practiceCount' => $user->practices()->count(),
-            'templates' => $user->practices()->orderBy('title')->get(['id', 'title', 'body']),
+            'notebook' => $user->practices()->handy()->get(['id', 'title', 'category', 'body', 'uses']),
             'canWrite' => $user->canWrite(),
         ]);
     }

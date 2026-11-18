@@ -6,7 +6,7 @@ import { useState } from 'react';
 export type Step = { text: string; done: boolean };
 export type Template = { id: number; title: string; body: string };
 
-/** Une fiche de bonnes pratiques devient une liste d'étapes : une ligne = une étape, sans numéros ni puces. */
+/** Une fiche du carnet devient une liste d'étapes : une ligne = une étape, sans numéros ni puces. */
 export function stepsFrom(body: string): Step[] {
     return body
         .split('\n')

@@ -128,7 +128,7 @@ Il retient **l'image** d'un sujet, pas son titre : tout doit rester graphique.
   carte dit pourquoi elle passe (`reasonFor`). Gestes : Étape faite / C'est fait, J'attends quelqu'un, Plus tard.
 - **Étapes** (`steps`, JSON `[{text, done}]` sur la tâche ; dessin dans `components/task-steps.tsx`) : barre segmentée sur
   chaque carte, et sous la barre la **prochaine étape**, cochable d'un clic. Dans la fenêtre d'une tâche, un parcours
-  vertical (pastilles reliées) enregistré à chaque clic par `tasks.steps`. Une fiche de bonnes pratiques peut être
+  vertical (pastilles reliées) enregistré à chaque clic par `tasks.steps`. Une fiche du carnet peut être
   importée comme liste d'étapes (une ligne = une étape, numéros et puces retirés).
 - **La tâche avance seule** (`Task::statusFromSteps`, recopiée côté React pour l'affichage immédiat) : une étape cochée →
   En cours ; toutes cochées → Terminé ; tout décoché depuis Terminé → À faire. Le formulaire de la tâche n'envoie jamais
@@ -144,11 +144,15 @@ Il retient **l'image** d'un sujet, pas son titre : tout doit rester graphique.
   scopes `archived` / `onBoard`). Depuis l'archive : remettre à faire (étapes décochées), supprimer, ou tout vider.
   Graphique des tâches terminées sur 12 semaines.
 - **Série** : jours consécutifs avec au moins une tâche terminée, plus un graphique sur 7 jours.
-- **Bonnes pratiques** (`tasks/practices.tsx`, `PracticeController`) : fiches par catégorie, recherche, copie. Les fiches
-  de catégorie technique (cmd, PowerShell, bash, SQL, git…) s'affichent en bloc de code (`isCode`). Révision
-  espacée : la fiche due s'affiche sur le tableau, réponse masquée ; « Je savais » double l'intervalle (60 jours au plus),
-  « À revoir » la ramène au lendemain (`review_at`, `interval_days`).
-- **Pastille** sur le rail et l'accueil : tâches du tableau à échéance atteinte + fiches à réviser.
+- **Carnet** (`tasks/practices.tsx`, `PracticeController`, table `practices`, composants dans `components/notebook.tsx`) :
+  le carnet de poche de Kevin, **pas un outil de révision** (il l'a précisé) : commandes souvent utilisées mais vite
+  oubliées, petites astuces. But unique : retrouver vite et copier en un clic. Une copie appelle `practices.used`
+  (`fetch` hors Inertia) qui incrémente `uses` / `last_used_at` ; les plus copiées passent en tête (`scopeHandy`).
+  Pictogramme terminal pour une commande (`isCode` : catégorie technique ou contenu qui commence comme une commande),
+  ampoule pour une astuce, couleur par catégorie. Recherche sans accents, tous les mots ; touche `/` pour chercher.
+  Une carte « Carnet » sur le tableau des tâches cherche et copie sans changer de page (3 résultats).
+  Une fiche peut aussi être importée comme liste d'étapes d'une tâche.
+- **Pastille** sur le rail et l'accueil : tâches du tableau à échéance atteinte + relances dues.
 
 Fuseau de l'application : Europe/Paris (les séries et échéances en dépendent).
 
